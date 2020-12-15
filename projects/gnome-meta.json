@@ -1,0 +1,113 @@
+{
+    "name": "GNOME",
+    "first_year": 1997,
+    "markers":
+    [
+        { "time": { "year": 1997, "month": 8 }, "row": 0,
+          "text": "▼ GNOME announced" },
+
+        { "time": { "year": 1999, "month": 3 }, "row": 1,
+          "text": "▼ GNOME 1.0" },
+
+        { "time": { "year": 2002, "month": 6 }, "row": 0,
+          "text": "▼ GNOME 2.0" },
+
+        { "time": { "year": 2007, "month": 1 }, "row": 0,
+          "text": "▼ Subversion" },
+
+        { "time": { "year": 2009, "month": 4 }, "row": 0,
+          "text": "▼ Git" },
+
+        { "time": { "year": 2011, "month": 4 }, "row": 0,
+          "text": "▼ GNOME 3.0" },
+
+        { "time": { "year": 2018, "month": 5 }, "row": 0,
+          "text": "▼ GitLab" }
+    ],
+    "domains":
+    [
+        {
+            "name": "localhost",
+            "show": false
+        },
+        {
+            "name": "personal",
+            "show": false,
+            "aggregate_emails":
+            [
+                { "pattern": "*baedert.org" },
+                { "pattern": "*gimp.org" },
+                { "pattern": "*gmail.com" },
+                { "pattern": "*gmx.de" },
+                { "pattern": "*gmx.net" },
+                { "pattern": "*gnome.org" },
+                { "pattern": "*gnome.hu" },
+                { "pattern": "*googlemail.com" },
+                { "pattern": "*gtk.org" },
+                { "pattern": "*hotmail.com" },
+                { "pattern": "*iki.fi" },
+                { "pattern": "john" },
+                { "pattern": "*manet.cz" },
+                { "pattern": "*pobox.com" },
+                { "pattern": "*@users.sf.net" },
+                { "pattern": "*users.sourceforge.net" },
+                { "pattern": "*@v3.sk" },
+                { "pattern": "*yahoo.com" }
+            ]
+        },
+        {
+            "name": "codethink.com",
+            "aggregate_emails":
+            [
+                { "pattern": "*desrt.ca" }
+            ]
+        },
+        {
+            "name": "collabora.com",
+            "aggregate_emails":
+            [
+                { "pattern": "*collabora.co.uk" }
+            ]
+        },
+        {
+            "name": "endlessm.com",
+            "aggregate_emails":
+            [
+                { "pattern": "*mecheye.net",
+                  "begin": { "year": 2014, "month": 10 },
+                  "end":   { "year": 2017, "month": 2 } }
+            ]
+        },
+        {
+            "name": "intel.com",
+            "aggregate_emails":
+            [
+                { "pattern": "*chris-wilson.co.uk" }
+            ]
+        },
+        {
+            "name": "openismus.com",
+            "aggregate_emails":
+            [
+                { "pattern": "*murrayc.com" }
+            ]
+        },
+        {
+            "name": "redhat.com",
+            "aggregate_emails":
+            [
+                { "pattern": "*hadess.net" },
+                { "pattern": "*hughsie.com" },
+                { "pattern": "*mecheye.net",
+                  "end":   { "year": 2014, "month": 10 } }
+            ]
+        },
+        {
+            "name": "ximian.com",
+            "aggregate_emails":
+            [
+                { "pattern": "*helixcode.com" }
+            ]
+        }
+    ]
+}
