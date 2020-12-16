@@ -4,8 +4,9 @@ Fornalder ("Bygone Age") is a small utility that can be used to ingest
 commit data from collections of git repositories and visualize it in
 various ways.
 
-It's made to work with data going back a long time (a decade or two).
-With shorter time spans the output will probably look quite bad.
+It was used to generate the graphs in [this blog post](https://hpjansson.org/blag/2020/12/16/on-the-graying-of-gnome/). It's made
+to work with data going back a long time (a decade or two); with
+shorter time spans the output will probably look quite bad.
 
 ## Building
 
