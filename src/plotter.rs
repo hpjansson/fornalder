@@ -113,15 +113,11 @@ impl Plotter
                                first_year: Option<i32>, last_year: Option<i32>) -> Result<()>
     {
         let bounds = hist.get_bounds().unwrap();
-        let first_year =
-            if first_year.is_some() { first_year.unwrap() }
-            else if meta.first_year.is_some() { meta.first_year.unwrap() }
-            else { bounds.0.year };
-        let last_year =
-            if last_year.is_some() { last_year.unwrap() }
-            else if meta.last_year.is_some() { meta.last_year.unwrap() }
-            else if bounds.0.year == bounds.1.year { bounds.1.year }
-            else { bounds.1.year - 1 };
+        let first_year = first_year.or(meta.first_year).unwrap_or(bounds.0.year);
+        let last_year = last_year.or(meta.last_year).unwrap_or_else(|| {
+            if bounds.0.year == bounds.1.year { bounds.1.year }
+            else { bounds.1.year - 1 }
+        });
         let markers = meta.markers_to_gnuplot();
         let gnuplot_cmd = format!("
             {}
