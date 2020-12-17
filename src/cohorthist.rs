@@ -279,3 +279,47 @@ impl CohortHist
             .join("\n")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn without_month_next() {
+        assert_eq!(
+            YearMonth {
+                year: 2020,
+                month: NO_MONTH,
+            }.next(),
+            YearMonth {
+                year: 2021,
+                month: NO_MONTH,
+            },
+        );
+    }
+
+    #[test]
+    fn with_month_next() {
+        assert_eq!(
+            YearMonth {
+                year: 2020,
+                month: 0,
+            }.next(),
+            YearMonth {
+                year: 2020,
+                month: 1,
+            },
+        );
+
+        assert_eq!(
+            YearMonth {
+                year: 2020,
+                month: 11,
+            }.next(),
+            YearMonth {
+                year: 2021,
+                month: 0,
+            },
+        );
+    }
+}
