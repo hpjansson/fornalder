@@ -27,13 +27,11 @@ use std::collections::HashMap;
 use chrono::{NaiveDate, NaiveDateTime};
 use serde::{Deserialize};
 
-pub const NO_MONTH: i32 = -1;
-
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Deserialize, Debug)]
 pub struct YearMonth
 {
     pub year: i32,
-    pub month: i32
+    pub month: Option<i32>,
 }
 
 impl YearMonth
@@ -43,15 +41,15 @@ impl YearMonth
         let YearMonth { year, month } = *self;
 
         match month {
-            NO_MONTH => YearMonth { year: year + 1, month: NO_MONTH },
-            11 => YearMonth { year: year + 1, month: 0 },
-            m => YearMonth { year, month: m + 1 },
+            None => YearMonth { year: year + 1, month: None },
+            Some(11) => YearMonth { year: year + 1, month: Some(0) },
+            Some(m) => YearMonth { year, month: Some(m + 1) },
         }
     }
 
     pub fn begin_dt(&self) -> NaiveDateTime
     {
-        let m = if self.month == NO_MONTH { 1 } else { self.month + 1 };
+        let m = self.month.unwrap_or(0) + 1;
         NaiveDate::from_ymd(self.year, m as u32, 1).and_hms(0, 0, 0)
     }
 
@@ -60,9 +58,9 @@ impl YearMonth
         let YearMonth { year, month } = *self;
 
         let date = match month {
-            NO_MONTH => NaiveDate::from_ymd(year + 1, 1, 1),
-            11 => NaiveDate::from_ymd(year + 1, 1, 1),
-            m => NaiveDate::from_ymd(year, m as u32 + 2, 1),
+            None => NaiveDate::from_ymd(year + 1, 1, 1),
+            Some(11) => NaiveDate::from_ymd(year + 1, 1, 1),
+            Some(m) => NaiveDate::from_ymd(year, m as u32 + 2, 1),
         };
 
         date.and_hms(0, 0, 0)
@@ -172,7 +170,7 @@ impl CohortHist
         // makes it easier to align the histogram in plots.
 
         let mut ym = first_ym;
-        if ym.month != NO_MONTH { ym.month = 0; }
+        if ym.month.is_some() { ym.month = Some(0); }
 
         while ym <= last_ym
         {
@@ -215,8 +213,8 @@ impl CohortHist
         {
             keys += match vecs[0].0.month
             {
-                NO_MONTH => "Year|Sum",
-                _ => "Year|Month|Sum"
+                None => "Year|Sum",
+                Some(_) => "Year|Month|Sum"
             };
 
             while g <= gl
@@ -234,13 +232,18 @@ impl CohortHist
         }
 
         keys + &vecs.iter()
-            .map(|(ym, gens)|
-                 if ym.month == NO_MONTH { format!("{}|", ym.year) }
-                 else { format!("{}|{}|", ym.year, ym.month) }
-                 + &gens.iter()
+            .map(|(ym, gens)| {
+                 let prefix = if let Some(month) = ym.month {
+                     format!("{}|{}|", ym.year, month)
+                 } else {
+                     format!("{}|", ym.year)
+                 };
+
+                 prefix + &gens.iter()
                      .map(|(_, value)| format!("{}", value))
                      .collect::<Vec<String>>()
-                     .join("|"))
+                    .join("|")
+            })
             .collect::<Vec<String>>()
             .join("\n")
     }
@@ -255,11 +258,11 @@ mod tests {
         assert_eq!(
             YearMonth {
                 year: 2020,
-                month: NO_MONTH,
+                month: None,
             }.next(),
             YearMonth {
                 year: 2021,
-                month: NO_MONTH,
+                month: None,
             },
         );
     }
@@ -269,22 +272,22 @@ mod tests {
         assert_eq!(
             YearMonth {
                 year: 2020,
-                month: 0,
+                month: Some(0),
             }.next(),
             YearMonth {
                 year: 2020,
-                month: 1,
+                month: Some(1),
             },
         );
 
         assert_eq!(
             YearMonth {
                 year: 2020,
-                month: 11,
+                month: Some(11),
             }.next(),
             YearMonth {
                 year: 2021,
-                month: 0,
+                month: Some(0),
             },
         );
     }
@@ -292,12 +295,12 @@ mod tests {
     #[test]
     fn ym_begin() {
         assert_eq!(
-            YearMonth { year: 2020, month: NO_MONTH }.begin_dt(),
+            YearMonth { year: 2020, month: None }.begin_dt(),
             NaiveDate::from_ymd(2020, 1, 1).and_hms(0, 0, 0),
         );
 
         assert_eq!(
-            YearMonth { year: 2020, month: 11 }.begin_dt(),
+            YearMonth { year: 2020, month: Some(11) }.begin_dt(),
             NaiveDate::from_ymd(2020, 12, 1).and_hms(0, 0, 0),
         );
     }
@@ -305,17 +308,17 @@ mod tests {
     #[test]
     fn ym_end() {
         assert_eq!(
-            YearMonth { year: 2020, month: NO_MONTH }.end_dt(),
+            YearMonth { year: 2020, month: None }.end_dt(),
             NaiveDate::from_ymd(2021, 1, 1).and_hms(0, 0, 0),
         );
 
         assert_eq!(
-            YearMonth { year: 2020, month: 0 }.end_dt(),
+            YearMonth { year: 2020, month: Some(0) }.end_dt(),
             NaiveDate::from_ymd(2020, 2, 1).and_hms(0, 0, 0),
         );
 
         assert_eq!(
-            YearMonth { year: 2020, month: 11 }.end_dt(),
+            YearMonth { year: 2020, month: Some(11) }.end_dt(),
             NaiveDate::from_ymd(2021, 1, 1).and_hms(0, 0, 0),
         );
     }
@@ -331,16 +334,16 @@ mod tests {
     fn cohort_hist_bounds() {
         let mut hist = CohortHist::new();
 
-        hist.set_value(YearMonth { year: 2020, month: 0 }, 0, 0);
-        hist.set_value(YearMonth { year: 2020, month: 1 }, 1, 1);
-        hist.set_value(YearMonth { year: 2020, month: 2 }, 2, 2);
+        hist.set_value(YearMonth { year: 2020, month: Some(0) }, 0, 0);
+        hist.set_value(YearMonth { year: 2020, month: Some(1) }, 1, 1);
+        hist.set_value(YearMonth { year: 2020, month: Some(2) }, 2, 2);
 
         let (first_ym, last_ym, first_cohort, last_cohort) = hist.get_bounds().unwrap();
         assert_eq!(
             (first_ym, last_ym, first_cohort, last_cohort),
             (
-                YearMonth { year: 2020, month: 0 },
-                YearMonth { year: 2020, month: 2 },
+                YearMonth { year: 2020, month: Some(0) },
+                YearMonth { year: 2020, month: Some(2) },
                 0,
                 2,
             ),
@@ -351,16 +354,16 @@ mod tests {
     fn cohort_hist_bounds_empty_months() {
         let mut hist = CohortHist::new();
 
-        hist.set_value(YearMonth { year: 2020, month: NO_MONTH }, 0, 0);
-        hist.set_value(YearMonth { year: 2020, month: NO_MONTH }, 1, 1);
-        hist.set_value(YearMonth { year: 2020, month: NO_MONTH }, 2, 2);
+        hist.set_value(YearMonth { year: 2020, month: None }, 0, 0);
+        hist.set_value(YearMonth { year: 2020, month: None }, 1, 1);
+        hist.set_value(YearMonth { year: 2020, month: None }, 2, 2);
 
         let (first_ym, last_ym, first_cohort, last_cohort) = hist.get_bounds().unwrap();
         assert_eq!(
             (first_ym, last_ym, first_cohort, last_cohort),
             (
-                YearMonth { year: 2020, month: NO_MONTH },
-                YearMonth { year: 2020, month: NO_MONTH },
+                YearMonth { year: 2020, month: None },
+                YearMonth { year: 2020, month: None },
                 0,
                 2,
             ),

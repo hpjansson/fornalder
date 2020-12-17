@@ -25,7 +25,7 @@
 use chrono::prelude::Utc;
 use chrono::{ Datelike, DateTime, NaiveDateTime };
 use rusqlite::{ Connection, NO_PARAMS };
-use crate::cohorthist::{ CohortHist, NO_COHORT, NO_MONTH, YearMonth };
+use crate::cohorthist::{ CohortHist, NO_COHORT, YearMonth };
 use crate::common::{ CohortType, IntervalType, UnitType };
 use crate::errors::*;
 use crate::gitcommitreader::RawCommit;
@@ -299,7 +299,7 @@ impl CommitDb
                 IntervalType::Year =>
                 {
                     hist.set_value(YearMonth { year:  r.get(0).unwrap(),
-                                               month: NO_MONTH },
+                                               month: None },
                                    r.get(1).unwrap(), r.get(2).unwrap());
                     hist.set_cohort_name(r.get(1).unwrap(), &r.get::<_, i32>(1).unwrap().to_string());
                 }
@@ -354,7 +354,7 @@ impl CommitDb
                 IntervalType::Year =>
                 {
                     hist.set_value(YearMonth { year:  r.get(0).unwrap(),
-                                               month: NO_MONTH },
+                                               month: None },
                                    r.get(1).unwrap(), r.get(2).unwrap());
                     hist.set_cohort_name(r.get(1).unwrap(), &r.get::<_, String>(3).unwrap());
                 }
