@@ -322,4 +322,35 @@ mod tests {
             },
         );
     }
+
+    #[test]
+    fn ym_begin() {
+        assert_eq!(
+            YearMonth { year: 2020, month: NO_MONTH }.begin_dt(),
+            NaiveDate::from_ymd(2020, 1, 1).and_hms(0, 0, 0),
+        );
+
+        assert_eq!(
+            YearMonth { year: 2020, month: 11 }.begin_dt(),
+            NaiveDate::from_ymd(2020, 12, 1).and_hms(0, 0, 0),
+        );
+    }
+
+    #[test]
+    fn ym_end() {
+        assert_eq!(
+            YearMonth { year: 2020, month: NO_MONTH }.end_dt(),
+            NaiveDate::from_ymd(2021, 1, 1).and_hms(0, 0, 0),
+        );
+
+        assert_eq!(
+            YearMonth { year: 2020, month: 0 }.end_dt(),
+            NaiveDate::from_ymd(2020, 2, 1).and_hms(0, 0, 0),
+        );
+
+        assert_eq!(
+            YearMonth { year: 2020, month: 11 }.end_dt(),
+            NaiveDate::from_ymd(2021, 1, 1).and_hms(0, 0, 0),
+        );
+    }
 }
