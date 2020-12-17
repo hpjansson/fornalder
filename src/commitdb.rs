@@ -394,8 +394,9 @@ fn email_to_domain(email: &str) -> String
 
     // Strip local part.
 
-    let p = email.rfind('@');
-    if p.is_some() { email = String::from(&email[p.unwrap() + 1..]); }
+    if let Some(p) = email.rfind('@') {
+        email.replace_range(0..=p, "");
+    }
 
     // Trim the domain as much as possible. If the last element looks
     // like a country code and the next-to-last one is 2-3 letters, it's
