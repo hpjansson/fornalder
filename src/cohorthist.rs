@@ -22,6 +22,7 @@
  * CohortHist *
  * ---------- */
 
+use itertools::{Itertools, MinMaxResult};
 use std::collections::HashMap;
 use chrono::{NaiveDate, NaiveDateTime};
 use serde::{Deserialize};
@@ -134,24 +135,10 @@ impl CohortHist
 
     pub fn get_bounds(&self) -> Option<(YearMonth, YearMonth, i32, i32)>
     {
-        let mut first_ym = YearMonth { year: i32::MAX, month: i32::MAX };
-        let mut last_ym = YearMonth { year: i32::MIN, month: i32::MIN };
-
-        for ym in self.bins.keys()
-        {
-            if ym < &first_ym
-            {
-                first_ym = *ym;
-                if last_ym < first_ym { last_ym = first_ym; }
-            }
-
-            if ym > &last_ym { last_ym = *ym; }
-        }
-
-        match first_ym
-        {
-            YearMonth { year: i32::MAX, month: i32::MAX } => { None },
-            _ => { Some((first_ym, last_ym, self.first_cohort, self.last_cohort)) }
+        match self.bins.keys().minmax() {
+            MinMaxResult::NoElements => None,
+            MinMaxResult::OneElement(&ym) => Some((ym, ym, self.first_cohort, self.last_cohort)),
+            MinMaxResult::MinMax(&min, &max) => Some((min, max, self.first_cohort, self.last_cohort)),
         }
     }
 
