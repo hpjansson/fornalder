@@ -128,7 +128,7 @@ impl ProjectMeta
             + &self.markers.as_ref().unwrap().iter()
                 .map(|m| { n_markers += 1;
                            format!("'{}', '{:02}', {}, '{}',",
-                                   m.time.year, m.time.month, m.row, m.text) })
+                                   m.time.year, m.time.month.unwrap_or(-1), m.row, m.text) })
                 .collect::<Vec<String>>().join(" ")
             + &" ];".to_string(),
          n_markers)
