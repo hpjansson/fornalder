@@ -86,7 +86,7 @@ impl CommitDb
         Ok(CommitDb { conn })
     }
 
-    fn email_to_domain(&self, email: &String) -> String
+    fn email_to_domain(&self, email: &str) -> String
     {
         let mut email: String = email.to_lowercase();
 
@@ -287,7 +287,7 @@ impl CommitDb
         Ok(())
     }
 
-    pub fn get_last_author_time(&mut self, repo_name: &String) -> DateTime<Utc>
+    pub fn get_last_author_time(&mut self, repo_name: &str) -> DateTime<Utc>
     {
         let mut stmt = self.conn.prepare("
             select author_time from raw_commits

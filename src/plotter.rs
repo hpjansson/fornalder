@@ -108,7 +108,7 @@ impl Plotter
 {
     pub fn plot_yearly_cohorts(&self,
                                meta: &ProjectMeta,
-                               unit: &String,
+                               unit: &str,
                                hist: &CohortHist, out_file: &PathBuf,
                                first_year: Option<i32>, last_year: Option<i32>) -> Result<()>
     {
@@ -191,7 +191,7 @@ EOD
 
     pub fn plot_monthly_cohorts(&self,
                                 meta: &ProjectMeta,
-                                unit: &String,
+                                unit: &str,
                                 hist: &CohortHist, out_file: &PathBuf,
                                 first_year: Option<i32>, last_year: Option<i32>) -> Result<()>
     {

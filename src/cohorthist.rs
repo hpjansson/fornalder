@@ -118,9 +118,9 @@ impl CohortHist
         }
     }
 
-    pub fn set_cohort_name(&mut self, cohort: i32, name: &String)
+    pub fn set_cohort_name(&mut self, cohort: i32, name: &str)
     {
-        self.cohort_names.insert(cohort, name.clone());
+        self.cohort_names.insert(cohort, name.to_string());
     }
 
     pub fn get_cohort_name(&self, cohort: i32) -> String

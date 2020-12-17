@@ -56,7 +56,7 @@ pub struct GitCommitReader
 
 impl GitCommitReader
 {
-    pub fn new(repo_path: std::path::PathBuf, repo_name: &String, since: DateTime<Utc>) -> Result<GitCommitReader>
+    pub fn new(repo_path: std::path::PathBuf, repo_name: &str, since: DateTime<Utc>) -> Result<GitCommitReader>
     {
         let repo_path = repo_path.canonicalize().unwrap();
         let stdout = Command::new("git")
@@ -81,7 +81,7 @@ impl GitCommitReader
 
         let gcr: GitCommitReader = GitCommitReader
         {
-            repo_name: repo_name.clone(),
+            repo_name: repo_name.to_string(),
             insertions_re: Regex::new(r"([0-9]+) insertions?").unwrap(),
             deletions_re: Regex::new(r"([0-9]+) deletions?").unwrap(),
             commit_re: Regex::new(r"^[0-9a-f]+__sep__").unwrap(),
