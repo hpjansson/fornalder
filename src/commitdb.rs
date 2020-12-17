@@ -86,58 +86,6 @@ impl CommitDb
         Ok(CommitDb { conn })
     }
 
-    fn email_to_domain(&self, email: &str) -> String
-    {
-        let mut email: String = email.to_lowercase();
-
-        // Strip local part.
-
-        let p = email.rfind('@');
-        if p.is_some() { email = String::from(&email[p.unwrap() + 1..]); }
-
-        // Trim the domain as much as possible. If the last element looks
-        // like a country code and the next-to-last one is 2-3 letters, it's
-        // likely of the form 'domain.ac.uk' or 'domain.com.au'. We keep
-        // three elements in those cases. Otherwise we keep two as in
-        // 'domain.org'.
-        //
-        // If we wanted to get fancy we could've used this list:
-        //
-        // https://publicsuffix.org/list/public_suffix_list.dat
-        //
-        // ...but the relative gain is likely not worth it.
-
-        let split: Vec<&str> = email.split('.').collect();
-        let n = split.len();
-
-        if n > 2
-        {
-            if split[n - 1].len() < 3
-            {
-                if split[n - 2].len() < 4
-                {
-                    // domain.com.au
-                    split[n - 3..n].join(".")
-                }
-                else
-                {
-                    // domain.au
-                    split[n - 2..n].join(".")
-                }
-            }
-            else
-            {
-                // domain.org
-                split[n - 2..n].join(".")
-            }
-        }
-        else
-        {
-            // Already optimal, or malformed
-            email
-        }
-    }
-
     pub fn insert_raw_commit(&mut self, commit: &RawCommit) -> Result<()>
     {
         let author_time: i64;
@@ -191,7 +139,7 @@ impl CommitDb
               &commit.repo_name,
               &commit.author_name,
               &commit.author_email,
-              &self.email_to_domain(&commit.author_email),
+              &email_to_domain(&commit.author_email),
               &author_time.to_string(),
               &author_year.to_string(),
               &author_month.to_string(),
@@ -437,5 +385,57 @@ impl CommitDb
                 self.get_domain_hist(interval, selector)
             }
         }
+    }
+}
+
+fn email_to_domain(email: &str) -> String
+{
+    let mut email: String = email.to_lowercase();
+
+    // Strip local part.
+
+    let p = email.rfind('@');
+    if p.is_some() { email = String::from(&email[p.unwrap() + 1..]); }
+
+    // Trim the domain as much as possible. If the last element looks
+    // like a country code and the next-to-last one is 2-3 letters, it's
+    // likely of the form 'domain.ac.uk' or 'domain.com.au'. We keep
+    // three elements in those cases. Otherwise we keep two as in
+    // 'domain.org'.
+    //
+    // If we wanted to get fancy we could've used this list:
+    //
+    // https://publicsuffix.org/list/public_suffix_list.dat
+    //
+    // ...but the relative gain is likely not worth it.
+
+    let split: Vec<&str> = email.split('.').collect();
+    let n = split.len();
+
+    if n > 2
+    {
+        if split[n - 1].len() < 3
+        {
+            if split[n - 2].len() < 4
+            {
+                // domain.com.au
+                split[n - 3..n].join(".")
+            }
+            else
+            {
+                // domain.au
+                split[n - 2..n].join(".")
+            }
+        }
+        else
+        {
+            // domain.org
+            split[n - 2..n].join(".")
+        }
+    }
+    else
+    {
+        // Already optimal, or malformed
+        email
     }
 }
