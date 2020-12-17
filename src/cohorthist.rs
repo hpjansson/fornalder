@@ -39,25 +39,13 @@ impl YearMonth
 {
     pub fn next(&self) -> YearMonth
     {
-        let mut ym = YearMonth { year: -1, month: -1 };
+        let YearMonth { year, month } = *self;
 
-        if self.month == NO_MONTH
-        {
-            ym.year = self.year + 1;
-            ym.month = NO_MONTH;
+        match month {
+            NO_MONTH => YearMonth { year: year + 1, month: NO_MONTH },
+            11 => YearMonth { year: year + 1, month: 0 },
+            m => YearMonth { year, month: m + 1 },
         }
-        else if self.month == 11
-        {
-            ym.year = self.year + 1;
-            ym.month = 0;
-        }
-        else
-        {
-            ym.year = self.year;
-            ym.month = self.month + 1;
-        }
-
-        ym
     }
 
     pub fn begin_dt(&self) -> NaiveDateTime
@@ -68,24 +56,15 @@ impl YearMonth
 
     pub fn end_dt(&self) -> NaiveDateTime
     {
-        if self.month == NO_MONTH
-        {
-            NaiveDate::from_ymd(self.year + 1, 1, 1).and_hms(0, 0, 0)
-        }
-        else
-        {
-            let (y, m) =
-                if self.month == 11
-                {
-                    (self.year + 1, 1)
-                }
-                else
-                {
-                    (self.year, self.month + 2)
-                };
+        let YearMonth { year, month } = *self;
 
-            NaiveDate::from_ymd(y, m as u32, 1).and_hms(0, 0, 0)
-        }
+        let date = match month {
+            NO_MONTH => NaiveDate::from_ymd(year + 1, 1, 1),
+            11 => NaiveDate::from_ymd(year + 1, 1, 1),
+            m => NaiveDate::from_ymd(year, m as u32 + 2, 1),
+        };
+
+        date.and_hms(0, 0, 0)
     }
 }
 
