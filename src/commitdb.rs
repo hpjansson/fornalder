@@ -83,12 +83,7 @@ impl CommitDb
             create index index_committer_time on raw_commits (committer_time);
         ", NO_PARAMS).chain_err(|| "Failed to create tables")?;
 
-        let cdb: CommitDb = CommitDb
-        {
-            conn: conn,
-        };
-
-        Ok(cdb)
+        Ok(CommitDb { conn })
     }
 
     fn email_to_domain(&self, email: &String) -> String
