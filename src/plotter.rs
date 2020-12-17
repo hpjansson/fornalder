@@ -120,16 +120,16 @@ impl Plotter
         });
         let markers = meta.markers_to_gnuplot();
         let gnuplot_cmd = format!("
-            {}
-            set style line {} lt 1 lc rgb '#ffffd0';
+            {gnuplot_setup}
+            set style line {last_style_num} lt 1 lc rgb '#ffffd0';
 $data << EOD
-{}
+{history}
 EOD
-            set output \"{}\";
-            set ylabel \"{}\";
-            set xrange [{}:{}];
+            set output \"{output}\";
+            set ylabel \"{ylabel}\";
+            set xrange [{xrange_0}:{xrange_1}];
             set multiplot;
-            plot for [i=3:{}] '$data' using i:xtic(stringcolumn(1)) ls i-2 title columnheader(i);
+            plot for [i=3:{plot_range}] '$data' using i:xtic(stringcolumn(1)) ls i-2 title columnheader(i);
             unset key;
             set style data histep;
             set xtics textcolor rgb \"0xff000000\" scale 1 0.5,1;
@@ -137,21 +137,21 @@ EOD
             set grid xtics ytics front linestyle 101;
             set yrange restore;
             set style textbox opaque noborder;
-            {}
-            {}
+            {markers}
+            {markers_extra}
             plot '$data' using 2 lc rgb 'black' lw 2 notitle;
             unset multiplot;
             ",
-            GNUPLOT_COHORTS_COMMON,
-            hist.get_n_bins() + 1,
-            &hist.to_csv(),
-            out_file.to_string_lossy().into_owned(),
-            unit,
-            (first_year - bounds.0.year) as f32 - 0.5,
-            (last_year - bounds.0.year) as f32 + 0.5,
-            hist.get_n_bins() + 3,
-            &markers.0,
-            if markers.1 > 0
+            gnuplot_setup = GNUPLOT_COHORTS_COMMON,
+            last_style_num = hist.get_n_bins() + 1,
+            history = &hist.to_csv(),
+            output = out_file.to_string_lossy().into_owned(),
+            ylabel = unit,
+            xrange_0 = (first_year - bounds.0.year) as f32 - 0.5,
+            xrange_1 = (last_year - bounds.0.year) as f32 + 0.5,
+            plot_range = hist.get_n_bins() + 3,
+            markers = &markers.0,
+            markers_extra = if markers.1 > 0
             {
                 format!("
                     set for [i=0:{}:1] label left markers[int(i)*4+4] \
@@ -202,16 +202,16 @@ EOD
             else { bounds.1.year };
         let markers = meta.markers_to_gnuplot();
         let gnuplot_cmd = format!("
-            {}
-            set style line {} lt 1 lc rgb '#ffffd0';
+            {gnuplot_setup}
+            set style line {last_style_num} lt 1 lc rgb '#ffffd0';
 $data << EOD
-{}
+{history}
 EOD
-            set output \"{}\";
-            set ylabel \"{}\";
-            set xrange [{}:{}];
+            set output \"{output}\";
+            set ylabel \"{ylabel}\";
+            set xrange [{xrange_0}:{xrange_1}];
             set multiplot;
-            plot for [i=4:{}] '$data' using i:xtic($2==\"06\" \
+            plot for [i=4:{plot_range}] '$data' using i:xtic($2==\"06\" \
                 ? stringcolumn(1) : \"\") ls i-3 title columnheader(i);
             unset key;
             set style data histep;
@@ -221,21 +221,21 @@ EOD
             set grid xtics ytics front linestyle 101;
             set yrange restore;
             set style textbox opaque noborder;
-            {}
-            {}
+            {markers}
+            {markers_extra}
             plot '$data' using 3 lc rgb 'black' lw 2 notitle;
             unset multiplot;
             ",
-            GNUPLOT_COHORTS_COMMON,
-            hist.get_n_bins() + 1,
-            &hist.to_csv(),
-            out_file.to_string_lossy().into_owned(),
-            unit,
-            ((first_year - bounds.0.year) * 12) as f32 - 0.5,
-            ((last_year - bounds.0.year) * 12 + 12) as f32 - 0.5,
-            hist.get_n_bins() + 4,
-            &markers.0,
-            if markers.1 > 0
+            gnuplot_setup = GNUPLOT_COHORTS_COMMON,
+            last_style_num = hist.get_n_bins() + 1,
+            history = &hist.to_csv(),
+            output = out_file.to_string_lossy().into_owned(),
+            ylabel = unit,
+            xrange_0 = ((first_year - bounds.0.year) * 12) as f32 - 0.5,
+            xrange_1 = ((last_year - bounds.0.year) * 12 + 12) as f32 - 0.5,
+            plot_range = hist.get_n_bins() + 4,
+            markers = &markers.0,
+            markers_extra = if markers.1 > 0
             {
                 format!("
                     set for [i=0:{}:1] label left markers[int(i)*4+4] \
