@@ -439,3 +439,13 @@ fn email_to_domain(email: &str) -> String
         email
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strips_email_username() {
+        assert_eq!(email_to_domain("dude@lebowski.com"), "lebowski.com");
+    }
+}
