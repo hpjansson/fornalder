@@ -70,9 +70,10 @@
             ]
         },
         {
-            "name": "endlessm.com",
+            "name": "endlessos.org",
             "aggregate_emails":
             [
+                { "pattern": "*endlessm.com" },
                 { "pattern": "*mecheye.net",
                   "begin": { "year": 2014, "month": 10 },
                   "end":   { "year": 2017, "month": 2 } }
