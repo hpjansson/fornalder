@@ -332,4 +332,51 @@ mod tests {
             NaiveDate::from_ymd(2021, 1, 1).and_hms(0, 0, 0),
         );
     }
+
+    #[test]
+    fn empty_cohort_hist_bounds() {
+        let hist = CohortHist::new();
+
+        assert!(hist.get_bounds().is_none());
+    }
+
+    #[test]
+    fn cohort_hist_bounds() {
+        let mut hist = CohortHist::new();
+
+        hist.set_value(YearMonth { year: 2020, month: 0 }, 0, 0);
+        hist.set_value(YearMonth { year: 2020, month: 1 }, 1, 1);
+        hist.set_value(YearMonth { year: 2020, month: 2 }, 2, 2);
+
+        let (first_ym, last_ym, first_cohort, last_cohort) = hist.get_bounds().unwrap();
+        assert_eq!(
+            (first_ym, last_ym, first_cohort, last_cohort),
+            (
+                YearMonth { year: 2020, month: 0 },
+                YearMonth { year: 2020, month: 2 },
+                0,
+                2,
+            ),
+        );
+    }
+
+    #[test]
+    fn cohort_hist_bounds_empty_months() {
+        let mut hist = CohortHist::new();
+
+        hist.set_value(YearMonth { year: 2020, month: NO_MONTH }, 0, 0);
+        hist.set_value(YearMonth { year: 2020, month: NO_MONTH }, 1, 1);
+        hist.set_value(YearMonth { year: 2020, month: NO_MONTH }, 2, 2);
+
+        let (first_ym, last_ym, first_cohort, last_cohort) = hist.get_bounds().unwrap();
+        assert_eq!(
+            (first_ym, last_ym, first_cohort, last_cohort),
+            (
+                YearMonth { year: 2020, month: NO_MONTH },
+                YearMonth { year: 2020, month: NO_MONTH },
+                0,
+                2,
+            ),
+        );
+    }
 }
