@@ -51,9 +51,9 @@ impl StatusLogger
         }
     }
 
-    pub fn begin_repo(&mut self, repo_name: &String)
+    pub fn begin_repo(&mut self, repo_name: &str)
     {
-        self.repo_name = repo_name.clone();
+        self.repo_name = repo_name.to_string();
         self.n_commits = 0;
         self.last_timestamp = 0;
         self.last_year = 0;
