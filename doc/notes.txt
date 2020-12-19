@@ -1,0 +1,55 @@
+Development notes
+=================
+
+Useful SQL statements
+---------------------
+
+Get N domains with most commits in each year:
+
+with row_set as (select author_year, domain, cnt, ROW_NUMBER() OVER (PARTITION BY author_year ORDER BY author_year) as row_num from ( select author_year, domain, count(domain) as cnt from raw_commits group by author_year, domain order by author_year, count(domain) desc)) select * from row_set where row_num <= 2;
+
+Get distinct developer count per domain:
+
+select domain,count(distinct(author_name)) from raw_commits group by domain order by count(distinct(author_name));
+
+Get average author age weighted by number of commits in each year:
+
+select author_year, avg(author_time-first_time) from raw_commits, authors where raw_commits.author_name=authors.author_name group by author_year order by author_year;
+
+// Extract domain portion of e-mail addresses.
+self.conn.execute("
+    update raw_commits set author_domain=substr(author_email, instr(author_email, '@') + 1);
+", NO_PARAMS).unwrap();
+
+// Remove leading parts of domain names until only two parts remain
+// (TLD + registered domain). For two-letter TLDs we leave three parts,
+// as they often have an extra level (e.g. .co.uk, .edu.au, .or.jp).
+//
+// Note: Ended up discarding this due to insufficient flexibility.
+loop
+{
+    if self.conn.execute("
+        update raw_commits
+        set author_domain=substr(author_domain, instr(author_domain, '.') + 1)
+        where (length(author_domain)
+               - length(rtrim(author_domain, 'abcdefghijklmnopqrstuvwxyz')) > 2
+               and length(author_domain) - length(replace(author_domain, '.', '')) > 1)
+            or (length(author_domain)
+                - length(rtrim(author_domain, 'abcdefghijklmnopqrstuvwxyz')) <= 2
+               and length(author_domain) - length(replace(author_domain, '.', '')) > 2);
+    ", NO_PARAMS).unwrap() == 0 { break; }
+}
+
+Useful Gnuplot incantations
+---------------------------
+
+Commit/join scatterplot:
+
+Input is CSV time,jointime,n_changes.
+
+gnuplot -e "set terminal pngcairo size 4096,4096 enhanced font 'Verdana,50' background rgb 'white'; set datafile separator ','; set output 'scat.png'; unset logscale y; set style circle radius 1500000; set cbrange [0:250]; set style fill transparent solid 0.05 noborder; set palette negative defined ( 0 '#D53E4F', 1 '#F46D43', 2 '#FDAE61', 3 '#FEE08B', 4 '#E6F598', 5 '#ABDDA4', 6 '#66C2A5', 7 '#3288BD' ); set xdata time; set ydata time; set timefmt '%s'; set format x '%Y-%m'; set format y '%Y-%m'; set grid xtics ytics lt 1 lc black; set tics scale 1,0.0; set xtics rotate by 45 right; set ytics rotate by 45 right; plot 'results.csv' using 2:3:4  with circles lc palette z"
+
+Commit/join scatterplot with time range:
+
+gnuplot -e "set terminal pngcairo size 4096,4096 enhanced font 'Verdana,50' background rgb 'white'; set datafile separator ','; set output 'scat2.png'; unset logscale y; set style circle radius 500000; set cbrange [0:250]; set style fill transparent solid 0.05 noborder; set palette negative defined ( 0 '#D53E4F', 1 '#F46D43', 2 '#FDAE61', 3 '#FEE08B', 4 '#E6F598', 5 '#ABDDA4', 6 '#66C2A5', 7 '#3288BD' ); set xdata time; set ydata time; set timefmt '%m/%d/%Y'; set xrange ['01/01/2002':'01/01/2004']; set yrange ['01/01/2002':'01/01/2004']; set timefmt '%s'; set format x '%Y-%m'; set format y '%Y-%m'; set grid xtics ytics lt 1 lc black; set tics scale 1,0.0; set xtics rotate by 45 right; set ytics rotate by 45 right; plot 'results.csv' using 2:3:4  with circles lc palette z"
+
