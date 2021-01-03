@@ -1,2 +1,5 @@
 /Cargo.lock
 /target
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite
