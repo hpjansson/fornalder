@@ -25,18 +25,19 @@ Clone the repositories of interest to a local directory, then ingest them.
 This can be run multiple times to add to or update the database:
 
 ```sh
-$ target/debug/fornalder --meta project-meta.json \
+$ target/debug/fornalder --meta projects/project-meta.json \
                          ingest db.sqlite repo-1.git repo-2.git ...
 ```
 
 When the database has been created, generate one or more plots, e.g:
 
 ```sh
-$ target/debug/fornalder --meta project-meta.json \
+$ target/debug/fornalder --meta projects/project-meta.json \
                          plot db.sqlite \
                          --cohort firstyear \
                          --interval year \
-                         --unit authors
+                         --unit authors \
+                         graph.png
 ```
 
 Guide to arguments:
