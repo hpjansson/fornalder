@@ -60,13 +60,17 @@
             "aggregate_emails":
             [
                 { "pattern": "*3v1n0.net" },
+                { "pattern": "*desrt.ca",
+                  "begin": { "year": 2012, "month": 6 },
+                  "end":   { "year": 2017, "month": 4 } }
             ]
         },
         {
             "name": "codethink.com",
             "aggregate_emails":
             [
-                { "pattern": "*desrt.ca" }
+                { "pattern": "*desrt.ca",
+                  "end": { "year": 2012, "month": 6 } }
             ]
         },
         {
@@ -104,6 +108,8 @@
             "name": "redhat.com",
             "aggregate_emails":
             [
+                { "pattern": "*desrt.ca",
+                  "begin": { "year": 2017, "month": 4 } },
                 { "pattern": "*hadess.net" },
                 { "pattern": "*hughsie.com" },
                 { "pattern": "*mecheye.net",
