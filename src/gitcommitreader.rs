@@ -60,9 +60,7 @@ impl GitCommitReader
     {
         let repo_path = repo_path.canonicalize().unwrap();
         let stdout = Command::new("git")
-            .arg("--git-dir")
-            .arg(repo_path.join(".git"))
-            .arg("--work-tree")
+            .arg("-C")
             .arg(&repo_path)
             .arg("log")
             .arg("--branches")
