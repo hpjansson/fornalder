@@ -88,6 +88,7 @@ https://gitlab.gnome.org/GNOME/babl
 https://gitlab.gnome.org/GNOME/baobab
 https://gitlab.gnome.org/GNOME/cheese
 https://gitlab.gnome.org/GNOME/dconf
+https://gitlab.gnome.org/GNOME/dconf-editor
 https://gitlab.gnome.org/GNOME/eog
 https://gitlab.gnome.org/GNOME/epiphany
 https://gitlab.gnome.org/GNOME/evince
@@ -187,3 +188,4 @@ https://gitlab.gnome.org/Infrastructure/glade-web
 https://gitlab.gnome.org/Infrastructure/gtk-web
 https://gitlab.gnome.org/Infrastructure/library-web
 https://gitlab.gnome.org/Infrastructure/sysadmin-bin
+https://gitlab.gnome.org/GNOME/gnome-panel
