@@ -65,7 +65,7 @@ impl GitCommitReader
             .arg("log")
             .arg("--branches")
             .arg("--remotes")
-            .arg("--pretty=format:%H__sep__%aD__sep__%an__sep__%ae__sep__%cD__sep__%cn__sep__%ce")
+            .arg("--pretty=format:%H__sep__%aD__sep__%aN__sep__%aE__sep__%cD__sep__%cN__sep__%cE")
             .arg("--reverse")
             .arg("--since")
             .arg(since.to_rfc2822())
