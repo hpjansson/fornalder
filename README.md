@@ -40,6 +40,27 @@ $ target/debug/fornalder --meta projects/project-meta.json \
                          graph.png
 ```
 
+If something looks odd in the result, you can also explore the database directly.
+
+```sh
+$ sqlite3 db.sqlite
+sqlite> .tables
+authors      raw_commits
+sqlite> .schema authors
+CREATE TABLE authors(
+  author_name TEXT,
+  first_time,
+  first_year,
+  last_time,
+  last_year,
+  active_time,
+  n_commits,
+  n_changes
+);
+sqlite> SELECT author_name, first_year FROM authors ORDER BY first_year;
+[...]
+```
+
 Guide to arguments:
 
 ```
