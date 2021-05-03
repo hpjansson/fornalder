@@ -219,7 +219,11 @@ impl CohortHist
 
             while g <= gl
             {
-                keys += &format!("|{}", self.get_cohort_name(g));
+                // Avoid empty column names; they break Gnuplot.
+                let mut cohort_name = self.get_cohort_name(g);
+                if cohort_name.is_empty() { cohort_name = "(blank)".to_string(); }
+
+                keys += &format!("|{}", cohort_name);
                 g += 1;
             }
 
