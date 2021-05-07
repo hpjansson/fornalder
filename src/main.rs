@@ -36,6 +36,7 @@ mod projectmeta;
 mod statuslogger;
 
 use std::path::PathBuf;
+use std::process::Command;
 use structopt::StructOpt;
 use errors::*;
 use crate::commitdb::CommitDb;
@@ -169,11 +170,32 @@ fn run_ingest(db_path: PathBuf, repo_tree_paths: Vec<PathBuf>, _meta: &ProjectMe
             .file_name().unwrap()
             .to_string_lossy()
             .into_owned();
-        let gcr = GitCommitReader::new(path.clone(),
-                                       &repo_name,
-                                       cdb.get_last_author_time(&repo_name))?;
 
         sl.begin_repo(&repo_name);
+
+        // Check for promisor for origin remote; we interpret its presence
+        // as a preference for remote storage. If found, we turn off --stat
+        // collection, since that would cause git to fetch all the remote
+        // blobs (slowly).
+        //
+        // This will break change counts. Author and commit counts will still
+        // work.
+
+        let mut cmd;
+        cmd = Command::new("git");
+        cmd.arg("-C").arg(&path).arg("config").arg("remote.origin.promisor");
+        let output = cmd.output().unwrap();
+        let has_promisor = std::str::from_utf8(&output.stdout).unwrap().trim() == "true";
+
+        if has_promisor
+        {
+            sl.log_warning("origin has a promisor; change details omitted.");
+        }
+
+        let gcr = GitCommitReader::new(path.clone(),
+                                       &repo_name,
+                                       cdb.get_last_author_time(&repo_name),
+                                       !has_promisor)?;
 
         for commit in gcr
         {

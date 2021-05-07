@@ -56,23 +56,30 @@ pub struct GitCommitReader
 
 impl GitCommitReader
 {
-    pub fn new(repo_path: std::path::PathBuf, repo_name: &str, since: DateTime<Utc>) -> Result<GitCommitReader>
+    pub fn new(repo_path: std::path::PathBuf, repo_name: &str, since: DateTime<Utc>, use_stat: bool) -> Result<GitCommitReader>
     {
         let repo_path = repo_path.canonicalize().unwrap();
-        let stdout = Command::new("git")
-            .arg("-C")
-            .arg(&repo_path)
-            .arg("log")
-            .arg("--branches")
-            .arg("--remotes")
-            .arg("--pretty=format:%H__sep__%aD__sep__%aN__sep__%aE__sep__%cD__sep__%cN__sep__%cE")
-            .arg("--reverse")
-            .arg("--since")
-            .arg(since.to_rfc2822())
-            .arg("--date-order")
-            .arg("--shortstat")
-            .arg("HEAD")
-            .stdout(Stdio::piped())
+        let mut cmd;
+
+        cmd = Command::new("git");
+        cmd.arg("-C")
+           .arg(&repo_path)
+           .arg("log")
+           .arg("--branches")
+           .arg("--remotes")
+           .arg("--pretty=format:%H__sep__%aD__sep__%aN__sep__%aE__sep__%cD__sep__%cN__sep__%cE")
+           .arg("--reverse")
+           .arg("--since")
+           .arg(since.to_rfc2822())
+           .arg("--date-order")
+           .arg("HEAD");
+
+        if use_stat
+        {
+            cmd.arg("--shortstat");
+        }
+
+        let stdout = cmd.stdout(Stdio::piped())
             .spawn().chain_err(|| "Could not spawn git")?
             .stdout.chain_err(|| "Could not read git output")?;
         let reader = BufReader::new(stdout);
