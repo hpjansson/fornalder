@@ -63,6 +63,12 @@ impl StatusLogger
         io::stdout().flush().unwrap();
     }
 
+    pub fn log_warning(&mut self, message: &str)
+    {
+        eprint!("\r\x1b[1;33m{}: {}\x1b[0m\x1b[K\n", self.repo_name, message);
+        self.last_timestamp = 0;
+    }
+
     pub fn log_commit(&mut self, commit: &RawCommit)
     {
         self.n_commits += 1;
