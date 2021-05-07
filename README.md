@@ -83,3 +83,17 @@ Guide to arguments:
 --to year
     Optional. Last year to plot.
 ```
+
+
+## Git cloning tips
+
+We support ingestion from both bare and non-bare repositories:
+
+    git clone https://git.example.com
+    git clone --bare https://git.example.com
+
+Another option that can massively reduce data transfer is `--filter=blob:none`, which will only clone commit metadata, not the files themselves.
+
+    git clone --bare --filter=blob:none https://git.example.com
+
+Note that this is not supported by all git servers (cloning may fail). Using this mode also prevents the use of the `--unit changes` option (counting the number of changed lines), or in general inspecting `--stat` output from the commit database.
