@@ -232,90 +232,6 @@ impl CommitDb
             create index index_active_time on authors (active_time);
         ", NO_PARAMS).chain_err(|| "Could not create author summaries")?;
 
-        // Generate tables with interval-domain author counts.
-
-        self.conn.execute ("drop table domain_year_aggregates;", NO_PARAMS).ok();
-        self.conn.execute ("
-            create table domain_year_aggregates as
-                select b.author_year as year,
-                       b.author_domain as domain,
-                       sum(cast(author_domain_count as float)/author_count) as active_author_sum
-                from authors,
-                (
-                    select author_year,
-                           author_domain,
-                           author_name,
-                           count(*) as author_count
-                    from raw_commits
-                    group by author_year,
-                             author_name
-                ) as a,
-                (
-                    select author_year,
-                           author_domain,
-                           author_name,
-                           count(*) as author_domain_count
-                    from raw_commits
-                    group by author_year,
-                             author_name,
-                             author_domain
-                ) as b
-                where a.author_year = b.author_year
-                    and a.author_name = b.author_name
-                    and authors.author_name = b.author_name
-                    and authors.active_time > (60*60*24*90)
-                group by b.author_year,
-                         b.author_domain;
-
-            create index index_year on domain_year_aggregates (year);
-            create index index_domain on domain_year_aggregates (domain);
-        ", NO_PARAMS).chain_err(|| "Could not create domain-year aggregates")?;
-
-        self.conn.execute ("drop table domain_month_aggregates;", NO_PARAMS).ok();
-        self.conn.execute ("
-            create table domain_month_aggregates as
-                select b.author_year as year,
-                       b.author_month as month,
-                       b.author_domain as domain,
-                       sum(cast(author_domain_count as float)/author_count) as active_author_sum
-                from authors,
-                (
-                    select author_year,
-                           author_month,
-                           author_domain,
-                           author_name,
-                           count(*) as author_count
-                    from raw_commits
-                    group by author_year,
-                             author_month,
-                             author_name
-                ) as a,
-                (
-                    select author_year,
-                           author_month,
-                           author_domain,
-                           author_name,
-                           count(*) as author_domain_count
-                    from raw_commits
-                    group by author_year,
-                             author_month,
-                             author_name,
-                             author_domain
-                ) as b
-                where a.author_year = b.author_year
-                    and a.author_month = b.author_month
-                    and a.author_name = b.author_name
-                    and authors.author_name = b.author_name
-                    and authors.active_time > (60*60*24*90)
-                group by b.author_year,
-                         b.author_month,
-                         b.author_domain;
-
-            create index index_year on domain_month_aggregates (year);
-            create index index_month on domain_month_aggregates (month);
-            create index index_domain on domain_month_aggregates (domain);
-        ", NO_PARAMS).chain_err(|| "Could not create domain-month aggregates")?;
-
         Ok(())
     }
 
@@ -448,24 +364,120 @@ impl CommitDb
         Ok(hist)
     }
 
+    fn create_domain_year_aggregates(&mut self) -> Result<()>
+    {
+        self.conn.execute ("drop table domain_year_aggregates;", NO_PARAMS).ok();
+        self.conn.execute ("
+            create table domain_year_aggregates as
+                select b.author_year as year,
+                       b.author_domain as domain,
+                       sum(cast(author_domain_count as float)/author_count) as active_author_sum
+                from authors,
+                (
+                    select author_year,
+                           author_domain,
+                           author_name,
+                           count(*) as author_count
+                    from raw_commits
+                    group by author_year,
+                             author_name
+                ) as a,
+                (
+                    select author_year,
+                           author_domain,
+                           author_name,
+                           count(*) as author_domain_count
+                    from raw_commits
+                    group by author_year,
+                             author_name,
+                             author_domain
+                ) as b
+                where a.author_year = b.author_year
+                    and a.author_name = b.author_name
+                    and authors.author_name = b.author_name
+                    and authors.active_time > (60*60*24*90)
+                group by b.author_year,
+                         b.author_domain;
+
+            create index index_year on domain_year_aggregates (year);
+            create index index_domain on domain_year_aggregates (domain);
+        ", NO_PARAMS).chain_err(|| "Could not create domain-year aggregates")?;
+
+        Ok(())
+    }
+
+    fn create_domain_month_aggregates(&mut self) -> Result<()>
+    {
+        self.conn.execute ("drop table domain_month_aggregates;", NO_PARAMS).ok();
+        self.conn.execute ("
+            create table domain_month_aggregates as
+                select b.author_year as year,
+                       b.author_month as month,
+                       b.author_domain as domain,
+                       sum(cast(author_domain_count as float)/author_count) as active_author_sum
+                from authors,
+                (
+                    select author_year,
+                           author_month,
+                           author_domain,
+                           author_name,
+                           count(*) as author_count
+                    from raw_commits
+                    group by author_year,
+                             author_month,
+                             author_name
+                ) as a,
+                (
+                    select author_year,
+                           author_month,
+                           author_domain,
+                           author_name,
+                           count(*) as author_domain_count
+                    from raw_commits
+                    group by author_year,
+                             author_month,
+                             author_name,
+                             author_domain
+                ) as b
+                where a.author_year = b.author_year
+                    and a.author_month = b.author_month
+                    and a.author_name = b.author_name
+                    and authors.author_name = b.author_name
+                    and authors.active_time > (60*60*24*90)
+                group by b.author_year,
+                         b.author_month,
+                         b.author_domain;
+
+            create index index_year on domain_month_aggregates (year);
+            create index index_month on domain_month_aggregates (month);
+            create index index_domain on domain_month_aggregates (domain);
+        ", NO_PARAMS).chain_err(|| "Could not create domain-month aggregates")?;
+
+        Ok(())
+    }
+
     fn get_domain_authors_hist(&mut self, interval: IntervalType) -> Result<CohortHist>
     {
         const N_DOMAINS: i32 = 15;
-        let interval_str = match interval
+        let interval_str: &str;
+        let domain_aggregate_table: &str;
+
+        match interval
         {
-            IntervalType::Month => "year, month",
-            _ => "year"
-        };
-        let author_interval_str = match interval
-        {
-            IntervalType::Month => "author_year, author_month",
-            _ => "author_year"
-        };
-        let domain_aggregate_table = match interval
-        {
-            IntervalType::Month => "domain_month_aggregates",
-            _ => "domain_year_aggregates"
-        };
+            IntervalType::Year =>
+            {
+                interval_str = "year";
+                domain_aggregate_table = "domain_year_aggregates";
+                self.create_domain_year_aggregates()?;
+            },
+            IntervalType::Month =>
+            {
+                interval_str = "year, month";
+                domain_aggregate_table = "domain_month_aggregates";
+                self.create_domain_month_aggregates()?;
+            }
+        }
+
         self.conn.execute ("drop table top_domains;", NO_PARAMS).ok();
         self.conn.execute (&format!("
             create table top_domains as
