@@ -140,15 +140,9 @@ impl CohortHist
         }
     }
 
-    pub fn get_n_bins(&self) -> i32
+    pub fn get_n_cohorts(&self) -> i32
     {
-        let bounds = self.get_bounds();
-
-        match bounds
-        {
-            Some(x) => { x.1.year - x.0.year + 1 },
-            None => 0
-        }
+        return self.last_cohort - self.first_cohort + 1;
     }
 
     pub fn to_vecs(&self) -> Vec<(YearMonth, Vec<(i32, i32)>)>

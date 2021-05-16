@@ -143,13 +143,13 @@ EOD
             unset multiplot;
             ",
             gnuplot_setup = GNUPLOT_COHORTS_COMMON,
-            last_style_num = hist.get_n_bins() + 1,
+            last_style_num = hist.get_n_cohorts() + 1,
             history = &hist.to_csv(),
             output = out_file.to_string_lossy().into_owned(),
             ylabel = unit,
             xrange_0 = (first_year - bounds.0.year) as f32 - 0.5,
             xrange_1 = (last_year - bounds.0.year) as f32 + 0.5,
-            plot_range = hist.get_n_bins() + 3,
+            plot_range = hist.get_n_cohorts() + 3,
             markers = &markers.0,
             markers_extra = if markers.1 > 0
             {
@@ -230,13 +230,13 @@ EOD
             unset multiplot;
             ",
             gnuplot_setup = GNUPLOT_COHORTS_COMMON,
-            last_style_num = hist.get_n_bins() + 1,
+            last_style_num = hist.get_n_cohorts() + 1,
             history = &hist.to_csv(),
             output = out_file.to_string_lossy().into_owned(),
             ylabel = unit,
             xrange_0 = ((first_year - bounds.0.year) * 12) as f32 - 0.5,
             xrange_1 = ((last_year - bounds.0.year) * 12 + 12) as f32 - 0.5,
-            plot_range = hist.get_n_bins() + 4,
+            plot_range = hist.get_n_cohorts() + 4,
             markers = &markers.0,
             markers_extra = if markers.1 > 0
             {
