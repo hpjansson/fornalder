@@ -180,7 +180,10 @@ EOD
 
         match output.status.success()
         {
-            false => { Err("Gnuplot reported error".into()) },
+            false => { Err(format!("In program: {}
+Gnuplot reported error: {}",
+                                   gnuplot_cmd,
+                                   String::from_utf8_lossy(&output.stderr)).into()) },
             true => { Ok(()) }
         }
     }
@@ -264,7 +267,10 @@ EOD
 
         match output.status.success()
         {
-            false => { Err("Gnuplot reported error".into()) },
+            false => { Err(format!("In program: {}
+Gnuplot reported error: {}",
+                                   gnuplot_cmd,
+                                   String::from_utf8_lossy(&output.stderr)).into()) },
             true => { Ok(()) }
         }
     }
