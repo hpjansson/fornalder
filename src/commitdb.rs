@@ -507,7 +507,7 @@ impl CommitDb
 
             union
 
-            select {},{},sum(active_author_sum),\"other\"
+            select {},{},sum(active_author_sum),\"Other\"
             from {}
             where domain not in (select domain from top_domains)
             group by {}",
