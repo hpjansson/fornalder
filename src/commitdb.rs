@@ -460,6 +460,7 @@ impl CommitDb
     {
         const N_DOMAINS: i32 = 15;
         let interval_str: &str;
+        let author_interval_str: &str;
         let domain_aggregate_table: &str;
 
         match interval
@@ -467,12 +468,14 @@ impl CommitDb
             IntervalType::Year =>
             {
                 interval_str = "year";
+                author_interval_str = "author_year";
                 domain_aggregate_table = "domain_year_aggregates";
                 self.create_domain_year_aggregates()?;
             },
             IntervalType::Month =>
             {
                 interval_str = "year, month";
+                author_interval_str = "author_year, author_month";
                 domain_aggregate_table = "domain_month_aggregates";
                 self.create_domain_month_aggregates()?;
             }
@@ -489,13 +492,11 @@ impl CommitDb
             domain_aggregate_table, N_DOMAINS),
             NO_PARAMS).chain_err(|| "Could not generate top domains")?;
         let mut stmt = self.conn.prepare(&(format!("
-            select {}, ab, ac, ad from (
             select {}, {}-top_domains.rowid as ab, sum(active_author_sum) as ac, top_domains.domain as ad
             from top_domains, {}
 
             where {}.domain = top_domains.domain
-            group by {}, top_domains.rowid)",
-            interval_str,
+            group by {}, top_domains.rowid",
             interval_str,
             N_DOMAINS + 1,
             domain_aggregate_table,
@@ -515,6 +516,21 @@ impl CommitDb
             N_DOMAINS + 1,
             domain_aggregate_table,
             interval_str)
+
+            + &format!("
+
+            union
+
+            select {},{},count(distinct raw_commits.author_name),\"Brief\"
+            from raw_commits, authors
+            where raw_commits.author_name=authors.author_name
+                and active_time <= (60*60*24*90)
+            group by {}",
+
+            author_interval_str,
+            NO_COHORT,
+            author_interval_str)
+
             + ";")).unwrap();
 
         let mut rows = stmt.query(NO_PARAMS).chain_err(|| "Could not query database")?;
@@ -540,6 +556,8 @@ impl CommitDb
                 }
             }
         }
+
+        hist.set_cohort_name(NO_COHORT, &"Brief".to_string());
 
         Ok(hist)
     }
