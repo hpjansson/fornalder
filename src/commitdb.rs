@@ -319,23 +319,63 @@ impl CommitDb
             IntervalType::Month => "author_year, author_month",
             _ => "author_year"
         };
-        let mut stmt = self.conn.prepare(&format!("
-            select {}, {}-top_domains.rowid, {}, top_domains.author_domain
-            from raw_commits, authors,
-                (select author_domain,row_number() over(order by {} desc) as rowid
-                 from raw_commits, authors where raw_commits.author_name = authors.author_name and raw_commits.show_domain = true and active_time > (60*60*24*90) group by author_domain order by {} desc limit {})
-                as top_domains
-            where raw_commits.author_domain = top_domains.author_domain
+        self.conn.execute ("drop table top_domains;", NO_PARAMS).ok();
+        self.conn.execute (&format!("
+            create table top_domains as
+                select author_domain as domain,row_number() over(order by {} desc) as rowid
+                from raw_commits, authors
+                where raw_commits.author_name = authors.author_name
+                    and raw_commits.show_domain = true
+                    and active_time > (60*60*24*90)
+                group by domain
+                order by {} desc
+                limit {};",
+            count_sel, count_sel, N_DOMAINS),
+            NO_PARAMS).chain_err(|| "Could not generate top domains")?;
+        let mut stmt = self.conn.prepare(&(format!("
+            select {}, {}-top_domains.rowid, {}, top_domains.domain
+            from top_domains, raw_commits, authors
+            where raw_commits.author_domain = top_domains.domain
                 and raw_commits.author_name = authors.author_name
                 and active_time > (60*60*24*90)
-            group by {}, top_domains.rowid;
-        ", interval_str,
-           N_DOMAINS + 1,
-           count_sel,
-           count_sel,
-           count_sel,
-           N_DOMAINS,
-           interval_str)).unwrap();
+            group by {}, top_domains.rowid",
+            interval_str,
+            N_DOMAINS + 1,
+            count_sel,
+            interval_str)
+
+            + &format!("
+
+            union
+
+            select {},{},{},\"Other\"
+            from raw_commits, authors
+            where raw_commits.author_name = authors.author_name
+                and author_domain not in (select domain from top_domains)
+                and active_time > (60*60*24*90)
+            group by {}",
+
+            interval_str,
+            N_DOMAINS + 1,
+            count_sel,
+            interval_str)
+
+            + &format!("
+
+            union
+
+            select {},{},{},\"Brief\"
+            from raw_commits, authors
+            where raw_commits.author_name = authors.author_name
+                and active_time <= (60*60*24*90)
+            group by {}",
+
+            interval_str,
+            NO_COHORT,
+            count_sel,
+            interval_str)
+
+            + ";")).unwrap();
 
         let mut rows = stmt.query(NO_PARAMS).chain_err(|| "Could not query database")?;
         let mut hist = CohortHist::new();
