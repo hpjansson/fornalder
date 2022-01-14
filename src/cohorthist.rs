@@ -118,7 +118,9 @@ impl CohortHist
 
     pub fn set_cohort_name(&mut self, cohort: i32, name: &str)
     {
-        self.cohort_names.insert(cohort, name.to_string());
+        let mut name_string = name.trim().to_string();
+        if name_string.is_empty() { name_string = "(blank)".to_string(); }
+        self.cohort_names.insert(cohort, name_string);
     }
 
     pub fn get_cohort_name(&self, cohort: i32) -> String
