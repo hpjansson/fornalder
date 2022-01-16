@@ -419,6 +419,7 @@ impl CommitDb
                            author_name,
                            count(*) as author_count
                     from raw_commits
+                    where show_domain = true
                     group by author_year,
                              author_name
                 ) as a,
@@ -428,6 +429,7 @@ impl CommitDb
                            author_name,
                            count(*) as author_domain_count
                     from raw_commits
+                    where show_domain = true
                     group by author_year,
                              author_name,
                              author_domain
@@ -463,6 +465,7 @@ impl CommitDb
                            author_name,
                            count(*) as author_count
                     from raw_commits
+                    where show_domain = true
                     group by author_year,
                              author_month,
                              author_name
@@ -474,6 +477,7 @@ impl CommitDb
                            author_name,
                            count(*) as author_domain_count
                     from raw_commits
+                    where show_domain = true
                     group by author_year,
                              author_month,
                              author_name,
@@ -543,6 +547,7 @@ impl CommitDb
             domain_aggregate_table,
             interval_str)
 
+            // TODO: Optionally hide small cohorts
             + &format!("
 
             union
@@ -551,12 +556,12 @@ impl CommitDb
             from {}
             where domain not in (select domain from top_domains)
             group by {}",
-
             interval_str,
             N_DOMAINS + 1,
             domain_aggregate_table,
             interval_str)
 
+            // TODO: Optionally hide brief contributors
             + &format!("
 
             union
@@ -564,9 +569,9 @@ impl CommitDb
             select {},{},count(distinct raw_commits.author_name),\"Brief\"
             from raw_commits, authors
             where raw_commits.author_name=authors.author_name
+                and show_domain = true
                 and active_time <= (60*60*24*90)
             group by {}",
-
             author_interval_str,
             NO_COHORT,
             author_interval_str)
@@ -597,6 +602,7 @@ impl CommitDb
             }
         }
 
+        // TODO: Optionally hide brief contributors
         hist.set_cohort_name(NO_COHORT, &"Brief".to_string());
 
         Ok(hist)
