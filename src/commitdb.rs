@@ -403,18 +403,18 @@ impl CommitDb
         Ok(hist)
     }
 
-    fn create_domain_year_aggregates(&mut self) -> Result<()>
+    fn create_column_year_aggregates(&mut self, column: &str) -> Result<()>
     {
-        self.conn.execute ("drop table domain_year_aggregates;", NO_PARAMS).ok();
-        self.conn.execute ("
-            create table domain_year_aggregates as
+        self.conn.execute (&format!("drop table {}_year_aggregates;", column), NO_PARAMS).ok();
+        self.conn.execute (&format!("
+            create table {column}_year_aggregates as
                 select b.author_year as year,
-                       b.author_domain as domain,
-                       sum(cast(author_domain_count as float)/author_count) as active_author_sum
+                       b.{column} as {column},
+                       sum(cast(author_{column}_count as float)/author_count) as active_author_sum
                 from authors,
                 (
                     select author_year,
-                           author_domain,
+                           {column},
                            author_name,
                            count(*) as author_count
                     from raw_commits
@@ -424,43 +424,43 @@ impl CommitDb
                 ) as a,
                 (
                     select author_year,
-                           author_domain,
+                           {column},
                            author_name,
-                           count(*) as author_domain_count
+                           count(*) as author_{column}_count
                     from raw_commits
                     where show_domain = true
                     group by author_year,
                              author_name,
-                             author_domain
+                             {column}
                 ) as b
                 where a.author_year = b.author_year
                     and a.author_name = b.author_name
                     and authors.author_name = b.author_name
                     and authors.active_time > (60*60*24*90)
                 group by b.author_year,
-                         b.author_domain;
+                         b.{column};
 
             create index index_year on domain_year_aggregates (year);
-            create index index_domain on domain_year_aggregates (domain);
-        ", NO_PARAMS).chain_err(|| "Could not create domain-year aggregates")?;
+            create index index_{column} on {column}_year_aggregates ({column});
+        ", column=column), NO_PARAMS).chain_err(|| format!("Could not create {} per-year aggregates", column))?;
 
         Ok(())
     }
 
-    fn create_domain_month_aggregates(&mut self) -> Result<()>
+    fn create_column_month_aggregates(&mut self, column: &str) -> Result<()>
     {
-        self.conn.execute ("drop table domain_month_aggregates;", NO_PARAMS).ok();
-        self.conn.execute ("
-            create table domain_month_aggregates as
+        self.conn.execute (&format!("drop table {}_month_aggregates;", column), NO_PARAMS).ok();
+        self.conn.execute (&format!("
+            create table {column}_month_aggregates as
                 select b.author_year as year,
                        b.author_month as month,
-                       b.author_domain as domain,
-                       sum(cast(author_domain_count as float)/author_count) as active_author_sum
+                       b.{column} as {column},
+                       sum(cast(author_{column}_count as float)/author_count) as active_author_sum
                 from authors,
                 (
                     select author_year,
                            author_month,
-                           author_domain,
+                           {column},
                            author_name,
                            count(*) as author_count
                     from raw_commits
@@ -472,15 +472,15 @@ impl CommitDb
                 (
                     select author_year,
                            author_month,
-                           author_domain,
+                           {column},
                            author_name,
-                           count(*) as author_domain_count
+                           count(*) as author_{column}_count
                     from raw_commits
                     where show_domain = true
                     group by author_year,
                              author_month,
                              author_name,
-                             author_domain
+                             {column}
                 ) as b
                 where a.author_year = b.author_year
                     and a.author_month = b.author_month
@@ -489,22 +489,22 @@ impl CommitDb
                     and authors.active_time > (60*60*24*90)
                 group by b.author_year,
                          b.author_month,
-                         b.author_domain;
+                         b.{column};
 
             create index index_year on domain_month_aggregates (year);
             create index index_month on domain_month_aggregates (month);
-            create index index_domain on domain_month_aggregates (domain);
-        ", NO_PARAMS).chain_err(|| "Could not create domain-month aggregates")?;
+            create index index_{column} on {column}_month_aggregates ({column});
+        ", column=column), NO_PARAMS).chain_err(|| format!("Could not create {} per-month aggregates", column))?;
 
         Ok(())
     }
 
-    fn get_domain_authors_hist(&mut self, interval: IntervalType) -> Result<CohortHist>
+    fn get_column_authors_hist(&mut self, column: &str, interval: IntervalType) -> Result<CohortHist>
     {
-        const N_DOMAINS: i32 = 15;
+        const N_ITEMS: i32 = 15;
         let interval_str: &str;
         let author_interval_str: &str;
-        let domain_aggregate_table: &str;
+        let aggregate_table;
 
         match interval
         {
@@ -512,68 +512,66 @@ impl CommitDb
             {
                 interval_str = "year";
                 author_interval_str = "author_year";
-                domain_aggregate_table = "domain_year_aggregates";
-                self.create_domain_year_aggregates()?;
+                aggregate_table = format!("{}_year_aggregates", column);
+                self.create_column_year_aggregates(column)?;
             },
             IntervalType::Month =>
             {
                 interval_str = "year, month";
                 author_interval_str = "author_year, author_month";
-                domain_aggregate_table = "domain_month_aggregates";
-                self.create_domain_month_aggregates()?;
+                aggregate_table = format!("{}_month_aggregates", column);
+                self.create_column_month_aggregates(column)?;
             }
         }
 
-        self.conn.execute ("drop table top_domains;", NO_PARAMS).ok();
+        self.conn.execute (&format!("drop table {column}_top;", column = column), NO_PARAMS).ok();
         self.conn.execute (&format!("
-            create table top_domains as
-                select domain,row_number() over(order by sum(active_author_sum) desc) as rowid
-                from {}
-                group by domain
+            create table {column}_top as
+                select {column} as {column},row_number() over(order by sum(active_author_sum) desc) as rowid
+                from {aggregate_table}
+                group by {column}
                 order by sum(active_author_sum) desc
-                limit {};",
-            domain_aggregate_table, N_DOMAINS),
+                limit {n_items};",
+            column = column, aggregate_table = aggregate_table, n_items = N_ITEMS),
             NO_PARAMS).chain_err(|| "Could not generate top domains")?;
         let mut stmt = self.conn.prepare(&(format!("
-            select {}, {}-top_domains.rowid as ab, sum(active_author_sum) as ac, top_domains.domain as ad
-            from top_domains, {}
+            select {interval}, {n_items}-{column}_top.rowid as ab, sum(active_author_sum) as ac, {column}_top.{column} as ad
+            from {column}_top, {aggregate_table}
 
-            where {}.domain = top_domains.domain
-            group by {}, top_domains.rowid",
-            interval_str,
-            N_DOMAINS + 1,
-            domain_aggregate_table,
-            domain_aggregate_table,
-            interval_str)
+            where {aggregate_table}.{column} = {column}_top.{column}
+            group by {interval}, {column}_top.rowid",
+            interval = interval_str,
+            n_items = N_ITEMS + 1,
+            aggregate_table = aggregate_table,
+            column = column)
 
             // TODO: Optionally hide small cohorts
             + &format!("
 
             union
 
-            select {},{},sum(active_author_sum),\"Other\"
-            from {}
-            where domain not in (select domain from top_domains)
-            group by {}",
-            interval_str,
-            N_DOMAINS + 1,
-            domain_aggregate_table,
-            interval_str)
+            select {interval},{n_items},sum(active_author_sum),\"Other\"
+            from {aggregate_table}
+            where {column} not in (select {column} from {column}_top)
+            group by {interval}",
+            interval = interval_str,
+            n_items = N_ITEMS + 1,
+            aggregate_table = aggregate_table,
+            column = column)
 
             // TODO: Optionally hide brief contributors
             + &format!("
 
             union
 
-            select {},{},count(distinct raw_commits.author_name),\"Brief\"
+            select {interval},{cohort_num},count(distinct raw_commits.author_name),\"Brief\"
             from raw_commits, authors
             where raw_commits.author_name=authors.author_name
                 and show_domain = true
                 and active_time <= (60*60*24*90)
-            group by {}",
-            author_interval_str,
-            NO_COHORT,
-            author_interval_str)
+            group by {interval}",
+            interval = author_interval_str,
+            cohort_num = NO_COHORT)
 
             + ";")).unwrap();
 
@@ -627,7 +625,7 @@ impl CommitDb
             {
                 match unit
                 {
-                    UnitType::Authors => { self.get_domain_authors_hist(interval) },
+                    UnitType::Authors => { self.get_column_authors_hist("author_domain", interval) },
                     _ => { self.get_column_hist("author_domain", interval, selector) }
                 }
             }
