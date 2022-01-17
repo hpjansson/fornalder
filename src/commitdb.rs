@@ -311,69 +311,68 @@ impl CommitDb
         Ok(hist)
     }
 
-    fn get_domain_hist(&mut self, interval: IntervalType, count_sel: &str) -> Result<CohortHist>
+    fn get_column_hist(&mut self, column: &str, interval: IntervalType, count_sel: &str) -> Result<CohortHist>
     {
-        const N_DOMAINS: i32 = 15;
+        const N_ITEMS: i32 = 15;
         let interval_str = match interval
         {
             IntervalType::Month => "author_year, author_month",
             _ => "author_year"
         };
-        self.conn.execute ("drop table top_domains;", NO_PARAMS).ok();
+        self.conn.execute (&format!("drop table {column}_top;", column = column), NO_PARAMS).ok();
         self.conn.execute (&format!("
-            create table top_domains as
-                select author_domain as domain,row_number() over(order by {} desc) as rowid
+            create table {column}_top as
+                select raw_commits.{column} as {column},row_number() over(order by {count_selector} desc) as rowid
                 from raw_commits, authors
                 where raw_commits.author_name = authors.author_name
                     and raw_commits.show_domain = true
                     and active_time > (60*60*24*90)
-                group by domain
-                order by {} desc
-                limit {};",
-            count_sel, count_sel, N_DOMAINS),
-            NO_PARAMS).chain_err(|| "Could not generate top domains")?;
+                group by {column}
+                order by {count_selector} desc
+                limit {n_items};",
+            column = column,
+            count_selector = count_sel,
+            n_items = N_ITEMS),
+            NO_PARAMS).chain_err(|| format!("Could not generate {}_top", column))?;
         let mut stmt = self.conn.prepare(&(format!("
-            select {}, {}-top_domains.rowid, {}, top_domains.domain
-            from top_domains, raw_commits, authors
-            where raw_commits.author_domain = top_domains.domain
+            select {interval}, {last_item}-{column}_top.rowid, {count_selector}, {column}_top.{column}
+            from {column}_top, raw_commits, authors
+            where raw_commits.{column} = {column}_top.{column}
                 and raw_commits.author_name = authors.author_name
                 and active_time > (60*60*24*90)
-            group by {}, top_domains.rowid",
-            interval_str,
-            N_DOMAINS + 1,
-            count_sel,
-            interval_str)
+            group by {interval}, {column}_top.rowid",
+            column = column,
+            interval = interval_str,
+            count_selector = count_sel,
+            last_item = N_ITEMS + 1)
 
             + &format!("
 
             union
 
-            select {},{},{},\"Other\"
+            select {interval},{item_num},{count_selector},\"Other\"
             from raw_commits, authors
             where raw_commits.author_name = authors.author_name
-                and author_domain not in (select domain from top_domains)
+                and {column} not in (select {column} from {column}_top)
                 and active_time > (60*60*24*90)
-            group by {}",
-
-            interval_str,
-            N_DOMAINS + 1,
-            count_sel,
-            interval_str)
+            group by {interval}",
+            column = column,
+            interval = interval_str,
+            count_selector = count_sel,
+            item_num = N_ITEMS + 1)
 
             + &format!("
 
             union
 
-            select {},{},{},\"Brief\"
+            select {interval},{item_num},{count_selector},\"Brief\"
             from raw_commits, authors
             where raw_commits.author_name = authors.author_name
                 and active_time <= (60*60*24*90)
-            group by {}",
-
-            interval_str,
-            NO_COHORT,
-            count_sel,
-            interval_str)
+            group by {interval}",
+            interval = interval_str,
+            count_selector = count_sel,
+            item_num = NO_COHORT)
 
             + ";")).unwrap();
 
@@ -629,7 +628,7 @@ impl CommitDb
                 match unit
                 {
                     UnitType::Authors => { self.get_domain_authors_hist(interval) },
-                    _ => { self.get_domain_hist(interval, selector) }
+                    _ => { self.get_column_hist("author_domain", interval, selector) }
                 }
             }
         }
