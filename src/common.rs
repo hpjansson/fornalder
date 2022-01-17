@@ -31,7 +31,8 @@ arg_enum!
     pub enum CohortType
     {
         FirstYear,
-        Domain
+        Domain,
+        Repo
     }
 }
 

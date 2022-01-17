@@ -628,6 +628,14 @@ impl CommitDb
                     UnitType::Authors => { self.get_column_authors_hist("author_domain", interval) },
                     _ => { self.get_column_hist("author_domain", interval, selector) }
                 }
+            },
+            CohortType::Repo =>
+            {
+                match unit
+                {
+                    UnitType::Authors => { self.get_column_authors_hist("repo_name", interval) },
+                    _ => { self.get_column_hist("repo_name", interval, selector) }
+                }
             }
         }
     }
