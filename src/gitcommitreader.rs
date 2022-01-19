@@ -25,9 +25,11 @@
 use chrono::prelude::Utc;
 use chrono::{DateTime, FixedOffset};
 use regex::Regex;
+use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Split};
 use std::iter::Peekable;
 use std::process::{Command, Stdio, ChildStdout};
+use unicase::UniCase;
 use crate::errors::*;
 
 #[derive(PartialEq, Default, Clone, Debug)]
@@ -42,7 +44,8 @@ pub struct RawCommit
     pub committer_email: String,
     pub committer_time: Option<DateTime::<FixedOffset>>,
     pub n_insertions: i32,
-    pub n_deletions: i32
+    pub n_deletions: i32,
+    pub n_changes_per_suffix: HashMap<UniCase<String>, i32>
 }
 
 pub struct GitCommitReader
@@ -51,6 +54,8 @@ pub struct GitCommitReader
     insertions_re: Regex,
     deletions_re: Regex,
     commit_re: Regex,
+    file_changes_re: Regex,
+    suffix_re: Regex,
     line_splitter: Peekable<Split<BufReader<ChildStdout>>>
 }
 
@@ -76,7 +81,7 @@ impl GitCommitReader
 
         if use_stat
         {
-            cmd.arg("--shortstat");
+            cmd.arg("--stat");
         }
 
         let stdout = cmd.stdout(Stdio::piped())
@@ -90,10 +95,28 @@ impl GitCommitReader
             insertions_re: Regex::new(r"([0-9]+) insertions?").unwrap(),
             deletions_re: Regex::new(r"([0-9]+) deletions?").unwrap(),
             commit_re: Regex::new(r"^[0-9a-f]+__sep__").unwrap(),
+            file_changes_re: Regex::new(r"^ +([^ ]+) +[|] +([0-9]+)").unwrap(),
+            suffix_re: Regex::new(r".*[./](.+)$").unwrap(),
             line_splitter: reader.split(b'\n').peekable()
         };
 
         Ok(gcr)
+    }
+
+    fn add_path_changes(&mut self, commit: &mut RawCommit, path: &str, n_changes: i32)
+    {
+        let suffix =
+            if self.suffix_re.is_match(path)
+            {
+                self.suffix_re.captures(path).unwrap()[1].to_string()
+            }
+            else
+            {
+                path.to_string()
+            };
+
+        *commit.n_changes_per_suffix.entry(UniCase(suffix.clone())).or_insert(0) += n_changes;
+//        println!("{}: {}", suffix, commit.n_changes_per_suffix.get(&UniCase(suffix.clone())).unwrap());
     }
 }
 
@@ -140,6 +163,7 @@ impl Iterator for GitCommitReader
 
             if self.commit_re.is_match(&line) { break; }
 
+            // Insertions and deletions can match on the same line, either can be absent
             if self.insertions_re.is_match(&line)
             {
                 commit.n_insertions += self.insertions_re.captures(&line).unwrap()[1].parse::<i32>().unwrap();
@@ -149,11 +173,21 @@ impl Iterator for GitCommitReader
                 commit.n_deletions += self.deletions_re.captures(&line).unwrap()[1].parse::<i32>().unwrap();
             }
 
+            if self.file_changes_re.is_match(&line)
+            {
+                let path = self.file_changes_re.captures(&line).unwrap()[1].to_string();
+                let n_changes = self.file_changes_re.captures(&line).unwrap()[2].parse::<i32>().unwrap();
+                self.add_path_changes(&mut commit, &path, n_changes);
+            }
+
             self.line_splitter.next();
             next_seg = self.line_splitter.peek();
         }
 
         if commit.id.is_empty() { return None; }
+
+//        println!("{:?}", commit);
+
         Some(commit)
     }
 }
