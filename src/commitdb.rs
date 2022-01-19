@@ -55,7 +55,7 @@ impl CommitDb
             conn.pragma_update(None, a, &b.to_string()).chain_err(|| "Failed to set pragma")?;
         }
 
-        conn.execute("
+        conn.execute_batch("
             create table if not exists raw_commits (
                 id text primary key on conflict replace,
                 repo_name text not null,
@@ -71,17 +71,17 @@ impl CommitDb
                 n_insertions int,
                 n_deletions int,
                 show_domain bool);
-            create index index_repo_name on raw_commits (repo_name);
-            create index index_author_name on raw_commits (author_name);
-            create index index_author_email on raw_commits (author_email);
-            create index index_author_domain on raw_commits (author_domain);
-            create index index_author_time on raw_commits (author_time);
-            create index index_author_year on raw_commits (author_year);
-            create index index_author_month on raw_commits (author_month);
-            create index index_committer_name on raw_commits (committer_name);
-            create index index_committer_email on raw_commits (committer_email);
-            create index index_committer_time on raw_commits (committer_time);
-        ", NO_PARAMS).chain_err(|| "Failed to create tables")?;
+            create index if not exists index_repo_name on raw_commits (repo_name);
+            create index if not exists index_author_name on raw_commits (author_name);
+            create index if not exists index_author_email on raw_commits (author_email);
+            create index if not exists index_author_domain on raw_commits (author_domain);
+            create index if not exists index_author_time on raw_commits (author_time);
+            create index if not exists index_author_year on raw_commits (author_year);
+            create index if not exists index_author_month on raw_commits (author_month);
+            create index if not exists index_committer_name on raw_commits (committer_name);
+            create index if not exists index_committer_email on raw_commits (committer_email);
+            create index if not exists index_committer_time on raw_commits (committer_time);
+        ").chain_err(|| "Failed to create tables")?;
 
         Ok(CommitDb { conn })
     }
@@ -205,7 +205,7 @@ impl CommitDb
         // last commit.
 
         self.conn.execute ("drop table authors;", NO_PARAMS).ok();
-        self.conn.execute ("
+        self.conn.execute_batch ("
             create table authors as
                 select author_name,
                        first_time,
@@ -227,10 +227,10 @@ impl CommitDb
                     from raw_commits
                     group by author_name
                 );
-            create index index_author_name on authors (author_name);
-            create index index_first_time on authors (first_time);
-            create index index_active_time on authors (active_time);
-        ", NO_PARAMS).chain_err(|| "Could not create author summaries")?;
+            create index if not exists index_author_name on authors (author_name);
+            create index if not exists index_first_time on authors (first_time);
+            create index if not exists index_active_time on authors (active_time);
+        ").chain_err(|| "Could not create author summaries")?;
 
         Ok(())
     }
