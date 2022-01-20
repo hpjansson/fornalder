@@ -32,7 +32,8 @@ arg_enum!
     {
         FirstYear,
         Domain,
-        Repo
+        Repo,
+        Suffix
     }
 }
 

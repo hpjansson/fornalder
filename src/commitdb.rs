@@ -425,10 +425,23 @@ impl CommitDb
         Ok(hist)
     }
 
-    fn create_column_year_aggregates(&mut self, column: &str) -> Result<()>
+    fn format_column_aggregates_from_where(&self, extra_table: Option<&str>) -> String
     {
+        if extra_table.is_some() {
+            format!("from raw_commits, {table} where show_domain = true
+                     and raw_commits.oid = {table}.commit_oid",
+                    table=extra_table.unwrap()).to_string()
+        } else {
+            "from raw_commits where show_domain = true".to_string()
+        }
+    }
+
+    fn create_column_year_aggregates(&mut self, column: &str, extra_table: Option<&str>) -> Result<()>
+    {
+        let from_where = self.format_column_aggregates_from_where (extra_table);
+
         self.conn.execute (&format!("drop table {}_year_aggregates;", column), NO_PARAMS).ok();
-        self.conn.execute (&format!("
+        self.conn.execute_batch (&format!("
             create table {column}_year_aggregates as
                 select b.author_year as year,
                        b.{column} as {column},
@@ -439,8 +452,7 @@ impl CommitDb
                            {column},
                            author_name,
                            count(*) as author_count
-                    from raw_commits
-                    where show_domain = true
+                    {from_where}
                     group by author_year,
                              author_name
                 ) as a,
@@ -449,8 +461,7 @@ impl CommitDb
                            {column},
                            author_name,
                            count(*) as author_{column}_count
-                    from raw_commits
-                    where show_domain = true
+                    {from_where}
                     group by author_year,
                              author_name,
                              {column}
@@ -462,17 +473,20 @@ impl CommitDb
                 group by b.author_year,
                          b.{column};
 
-            create index index_year on domain_year_aggregates (year);
-            create index index_{column} on {column}_year_aggregates ({column});
-        ", column=column), NO_PARAMS).chain_err(|| format!("Could not create {} per-year aggregates", column))?;
+            create index if not exists index_year on {column}_year_aggregates (year);
+            create index if not exists index_{column} on {column}_year_aggregates ({column});
+        ", column=column, from_where=from_where))
+        .chain_err(|| format!("Could not create {} per-year aggregates", column))?;
 
         Ok(())
     }
 
-    fn create_column_month_aggregates(&mut self, column: &str) -> Result<()>
+    fn create_column_month_aggregates(&mut self, column: &str, extra_table: Option<&str>) -> Result<()>
     {
+        let from_where = self.format_column_aggregates_from_where (extra_table);
+
         self.conn.execute (&format!("drop table {}_month_aggregates;", column), NO_PARAMS).ok();
-        self.conn.execute (&format!("
+        self.conn.execute_batch (&format!("
             create table {column}_month_aggregates as
                 select b.author_year as year,
                        b.author_month as month,
@@ -485,8 +499,7 @@ impl CommitDb
                            {column},
                            author_name,
                            count(*) as author_count
-                    from raw_commits
-                    where show_domain = true
+                    {from_where}
                     group by author_year,
                              author_month,
                              author_name
@@ -497,8 +510,7 @@ impl CommitDb
                            {column},
                            author_name,
                            count(*) as author_{column}_count
-                    from raw_commits
-                    where show_domain = true
+                    {from_where}
                     group by author_year,
                              author_month,
                              author_name,
@@ -513,10 +525,11 @@ impl CommitDb
                          b.author_month,
                          b.{column};
 
-            create index index_year on domain_month_aggregates (year);
-            create index index_month on domain_month_aggregates (month);
-            create index index_{column} on {column}_month_aggregates ({column});
-        ", column=column), NO_PARAMS).chain_err(|| format!("Could not create {} per-month aggregates", column))?;
+            create index if not exists index_year on {column}_month_aggregates (year);
+            create index if not exists index_month on {column}_month_aggregates (month);
+            create index if not exists index_{column} on {column}_month_aggregates ({column});
+        ", column=column, from_where=from_where))
+        .chain_err(|| format!("Could not create {} per-month aggregates", column))?;
 
         Ok(())
     }
@@ -535,14 +548,22 @@ impl CommitDb
                 interval_str = "year";
                 author_interval_str = "author_year";
                 aggregate_table = format!("{}_year_aggregates", column);
-                self.create_column_year_aggregates(column)?;
+                if column == "suffix" {
+                    self.create_column_year_aggregates(column, Some("suffixes"))?;
+                } else {
+                    self.create_column_year_aggregates(column, None)?;
+                }
             },
             IntervalType::Month =>
             {
                 interval_str = "year, month";
                 author_interval_str = "author_year, author_month";
                 aggregate_table = format!("{}_month_aggregates", column);
-                self.create_column_month_aggregates(column)?;
+                if column == "suffix" {
+                    self.create_column_month_aggregates(column, Some("suffixes"))?;
+                } else {
+                    self.create_column_month_aggregates(column, None)?;
+                }
             }
         }
 
@@ -657,6 +678,15 @@ impl CommitDb
                 {
                     UnitType::Authors => { self.get_column_authors_hist("repo_name", interval) },
                     _ => { self.get_column_hist("repo_name", interval, selector) }
+                }
+            }
+            CohortType::Suffix =>
+            {
+                match unit
+                {
+                    UnitType::Authors => { self.get_column_authors_hist("suffix", interval) },
+                    // TODO
+                    _ => { self.get_column_hist("suffix", interval, selector) }
                 }
             }
         }
