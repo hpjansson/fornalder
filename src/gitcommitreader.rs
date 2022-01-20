@@ -29,7 +29,6 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Split};
 use std::iter::Peekable;
 use std::process::{Command, Stdio, ChildStdout};
-use unicase::UniCase;
 use crate::errors::*;
 
 #[derive(PartialEq, Default, Clone, Debug)]
@@ -45,7 +44,7 @@ pub struct RawCommit
     pub committer_time: Option<DateTime::<FixedOffset>>,
     pub n_insertions: i32,
     pub n_deletions: i32,
-    pub n_changes_per_suffix: HashMap<UniCase<String>, i32>
+    pub n_changes_per_suffix: HashMap<String, i32>
 }
 
 pub struct GitCommitReader
@@ -115,7 +114,7 @@ impl GitCommitReader
                 path.to_string()
             };
 
-        *commit.n_changes_per_suffix.entry(UniCase(suffix.clone())).or_insert(0) += n_changes;
+        *commit.n_changes_per_suffix.entry(suffix.clone()).or_insert(0) += n_changes;
 //        println!("{}: {}", suffix, commit.n_changes_per_suffix.get(&UniCase(suffix.clone())).unwrap());
     }
 }

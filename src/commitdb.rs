@@ -84,7 +84,7 @@ impl CommitDb
 
             create table if not exists suffixes (
                 commit_oid int,
-                suffix text collate nocase,
+                suffix text,
                 n_changes int);
             create index if not exists index_suffix on suffixes (suffix);
         ").chain_err(|| "Failed to create tables")?;
