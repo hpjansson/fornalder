@@ -436,6 +436,46 @@ impl CommitDb
         }
     }
 
+    fn create_subcommit_year_aggregates(&mut self, column: &str, extra_table: &str) -> Result<()>
+    {
+        self.conn.execute (&format!("drop table {}_year_aggregates;", column), NO_PARAMS).ok();
+        self.conn.execute_batch (&format!("
+            create table {column}_year_aggregates as
+                select b.author_year as year,
+                       b.{column} as {column},
+                       sum(cast({column}_count as float)/commit_count) as column_sum
+                from
+                (
+                    select commit_oid,
+                           count(*) as commit_count
+                    from {table}
+                    group by commit_oid
+                ) as a,
+                (
+                    select commit_oid,
+                           author_year,
+                           {column},
+                           count(*) as {column}_count
+                    from raw_commits, authors, {table}
+                    where show_domain = true
+                        and raw_commits.oid = {table}.commit_oid
+                        and raw_commits.author_name = authors.author_name
+                        and authors.active_time > (60*60*24*90)
+                    group by commit_oid,
+                             {column}
+                ) as b
+                where a.commit_oid = b.commit_oid
+                group by b.author_year,
+                         b.{column};
+
+            create index if not exists index_year on {column}_year_aggregates (year);
+            create index if not exists index_{column} on {column}_year_aggregates ({column});
+        ", column=column, table=extra_table))
+        .chain_err(|| format!("Could not create {} per-year aggregates", column))?;
+
+        Ok(())
+    }
+
     fn create_column_year_aggregates(&mut self, column: &str, extra_table: Option<&str>) -> Result<()>
     {
         let from_where = self.format_column_aggregates_from_where (extra_table);
@@ -648,6 +688,118 @@ impl CommitDb
         Ok(hist)
     }
 
+    fn get_subcommit_hist(&mut self, column: &str, interval: IntervalType) -> Result<CohortHist>
+    {
+        const N_ITEMS: i32 = 15;
+        let interval_str: &str;
+        let author_interval_str: &str;
+        let aggregate_table;
+
+        match interval
+        {
+            IntervalType::Year =>
+            {
+                interval_str = "year";
+                author_interval_str = "author_year";
+                aggregate_table = format!("{}_year_aggregates", column);
+                if column == "suffix" {
+                    self.create_subcommit_year_aggregates(column, "suffixes")?;
+                }
+            },
+            IntervalType::Month =>
+            {
+                interval_str = "year, month";
+                author_interval_str = "author_year, author_month";
+                aggregate_table = format!("{}_month_aggregates", column);
+                if column == "suffix" {
+                    self.create_column_month_aggregates(column, Some("suffixes"))?;
+                } else {
+                    self.create_column_month_aggregates(column, None)?;
+                }
+            }
+        }
+
+        self.conn.execute (&format!("drop table {column}_top;", column = column), NO_PARAMS).ok();
+        self.conn.execute (&format!("
+            create table {column}_top as
+                select {column} as {column},row_number() over(order by sum(column_sum) desc) as rowid
+                from {aggregate_table}
+                group by {column}
+                order by sum(column_sum) desc
+                limit {n_items};",
+            column = column, aggregate_table = aggregate_table, n_items = N_ITEMS),
+            NO_PARAMS).chain_err(|| "Could not generate top domains")?;
+        let mut stmt = self.conn.prepare(&(format!("
+            select {interval}, {n_items}-{column}_top.rowid as ab, sum(column_sum) as ac, {column}_top.{column} as ad
+            from {column}_top, {aggregate_table}
+
+            where {aggregate_table}.{column} = {column}_top.{column}
+            group by {interval}, {column}_top.rowid",
+            interval = interval_str,
+            n_items = N_ITEMS + 1,
+            aggregate_table = aggregate_table,
+            column = column)
+
+            // TODO: Optionally hide small cohorts
+            + &format!("
+
+            union
+
+            select {interval},{n_items},sum(column_sum),\"Other\"
+            from {aggregate_table}
+            where {column} not in (select {column} from {column}_top)
+            group by {interval}",
+            interval = interval_str,
+            n_items = N_ITEMS + 1,
+            aggregate_table = aggregate_table,
+            column = column)
+
+            // TODO: Optionally hide brief contributors
+            + &format!("
+
+            union
+
+            select {interval},{cohort_num},count(distinct raw_commits.author_name),\"Brief\"
+            from raw_commits, authors
+            where raw_commits.author_name=authors.author_name
+                and show_domain = true
+                and active_time <= (60*60*24*90)
+            group by {interval}",
+            interval = author_interval_str,
+            cohort_num = NO_COHORT)
+
+            + ";")).unwrap();
+
+        let mut rows = stmt.query(NO_PARAMS).chain_err(|| "Could not query database")?;
+        let mut hist = CohortHist::new();
+
+        while let Some(r) = rows.next().chain_err(|| "Could not query database")?
+        {
+            match interval
+            {
+                IntervalType::Month =>
+                {
+                    hist.set_value(YearMonth { year:  r.get(0).unwrap(),
+                                               month: r.get(1).unwrap() },
+                                   r.get(2).unwrap(), r.get::<_,f64>(3).unwrap() as i32);
+                    hist.set_cohort_name(r.get(2).unwrap(), &r.get::<_, String>(4).unwrap());
+                },
+                IntervalType::Year =>
+                {
+                    hist.set_value(YearMonth { year:  r.get(0).unwrap(),
+                                               month: None },
+                                   r.get(1).unwrap(), r.get::<_,f64>(2).unwrap() as i32);
+                    hist.set_cohort_name(r.get(1).unwrap(), &r.get::<_, String>(3).unwrap());
+                }
+            }
+        }
+
+        // TODO: Optionally hide brief contributors
+        hist.set_cohort_name(NO_COHORT, &"Brief".to_string());
+
+        Ok(hist)
+    }
+
     pub fn get_hist(&mut self, cohort: CohortType, unit: UnitType,
                     interval: IntervalType) -> Result<CohortHist>
     {
@@ -686,7 +838,7 @@ impl CommitDb
                 {
                     UnitType::Authors => { self.get_column_authors_hist("suffix", interval) },
                     // TODO
-                    _ => { self.get_column_hist("suffix", interval, selector) }
+                    _ => { self.get_subcommit_hist("suffix", interval) }
                 }
             }
         }
