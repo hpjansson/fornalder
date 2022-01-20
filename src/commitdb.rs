@@ -443,16 +443,17 @@ impl CommitDb
             create table {column}_year_aggregates as
                 select b.author_year as year,
                        b.{column} as {column},
-                       sum(cast({column}_count as float)/commit_count) as column_sum
+                       sum(cast({column}_count as float)/sub_count) * commit_count as column_sum
                 from
                 (
-                    select commit_oid,
-                           count(*) as commit_count
-                    from {table}
-                    group by commit_oid
+                    select author_year,
+                           count(*) as sub_count
+                    from {table}, raw_commits
+                    where raw_commits.oid = {table}.commit_oid
+                    group by author_year
                 ) as a,
                 (
-                    select commit_oid,
+                    select 
                            author_year,
                            {column},
                            count(*) as {column}_count
@@ -461,10 +462,14 @@ impl CommitDb
                         and raw_commits.oid = {table}.commit_oid
                         and raw_commits.author_name = authors.author_name
                         and authors.active_time > (60*60*24*90)
-                    group by commit_oid,
+                    group by author_year,
                              {column}
-                ) as b
-                where a.commit_oid = b.commit_oid
+                ) as b,
+                (
+                    select author_year, count(*) as commit_count from raw_commits group by author_year
+                ) as c
+                where a.author_year = b.author_year
+                    and a.author_year = c.author_year
                 group by b.author_year,
                          b.{column};
 
