@@ -481,6 +481,65 @@ impl CommitDb
         Ok(())
     }
 
+    fn create_subcommit_month_aggregates(&mut self, column: &str, extra_table: &str) -> Result<()>
+    {
+        self.conn.execute (&format!("drop table {}_month_aggregates;", column), NO_PARAMS).ok();
+        self.conn.execute_batch (&format!("
+            create table {column}_month_aggregates as
+                select b.author_year as year,
+                       b.author_month as month,
+                       b.{column} as {column},
+                       sum(cast({column}_count as float)/sub_count) * commit_count as column_sum
+                from
+                (
+                    select author_year,
+                           author_month,
+                           count(*) as sub_count
+                    from {table}, raw_commits
+                    where raw_commits.oid = {table}.commit_oid
+                    group by author_year,
+                             author_month
+                ) as a,
+                (
+                    select 
+                           author_year,
+                           author_month,
+                           {column},
+                           count(*) as {column}_count
+                    from raw_commits, authors, {table}
+                    where show_domain = true
+                        and raw_commits.oid = {table}.commit_oid
+                        and raw_commits.author_name = authors.author_name
+                        and authors.active_time > (60*60*24*90)
+                    group by author_year,
+                             author_month,
+                             {column}
+                ) as b,
+                (
+                    select author_year,
+                           author_month,
+                           count(*) as commit_count
+                    from raw_commits
+                    group by author_year,
+                             author_month
+                ) as c
+                where a.author_year = b.author_year
+                    and a.author_month = b.author_month
+                    and a.author_year = c.author_year
+                    and a.author_month = c.author_month
+                group by b.author_year,
+                         b.author_month,
+                         b.{column};
+
+            create index if not exists index_year on {column}_month_aggregates (year);
+            create index if not exists index_month on {column}_month_aggregates (month);
+            create index if not exists index_{column} on {column}_month_aggregates ({column});
+        ", column=column, table=extra_table))
+        .chain_err(|| format!("Could not create {} per-month aggregates", column))?;
+
+        Ok(())
+    }
+
     fn create_column_year_aggregates(&mut self, column: &str, extra_table: Option<&str>) -> Result<()>
     {
         let from_where = self.format_column_aggregates_from_where (extra_table);
@@ -717,9 +776,7 @@ impl CommitDb
                 author_interval_str = "author_year, author_month";
                 aggregate_table = format!("{}_month_aggregates", column);
                 if column == "suffix" {
-                    self.create_column_month_aggregates(column, Some("suffixes"))?;
-                } else {
-                    self.create_column_month_aggregates(column, None)?;
+                    self.create_subcommit_month_aggregates(column, "suffixes")?;
                 }
             }
         }
