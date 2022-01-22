@@ -752,7 +752,8 @@ impl CommitDb
         Ok(hist)
     }
 
-    fn get_subcommit_hist(&mut self, column: &str, interval: IntervalType) -> Result<CohortHist>
+    fn get_subcommit_hist(&mut self, column: &str, interval: IntervalType,
+                          count_sel: &str) -> Result<CohortHist>
     {
         const N_ITEMS: i32 = 15;
         let interval_str: &str;
@@ -821,13 +822,14 @@ impl CommitDb
 
             union
 
-            select {interval},{cohort_num},count(distinct raw_commits.author_name),\"Brief\"
+            select {interval},{cohort_num},{count_selector},\"Brief\"
             from raw_commits, authors
             where raw_commits.author_name=authors.author_name
                 and show_domain = true
                 and active_time <= (60*60*24*90)
             group by {interval}",
             interval = author_interval_str,
+            count_selector = count_sel,
             cohort_num = NO_COHORT)
 
             + ";")).unwrap();
@@ -900,7 +902,7 @@ impl CommitDb
                 {
                     UnitType::Authors => { self.get_column_authors_hist("suffix", interval) },
                     // TODO
-                    _ => { self.get_subcommit_hist("suffix", interval) }
+                    _ => { self.get_subcommit_hist("suffix", interval, selector) }
                 }
             }
         }
