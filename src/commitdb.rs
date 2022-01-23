@@ -436,7 +436,8 @@ impl CommitDb
         }
     }
 
-    fn create_subcommit_year_aggregates(&mut self, column: &str, extra_table: &str) -> Result<()>
+    fn create_subcommit_year_aggregates(&mut self, column: &str, extra_table: &str,
+                                        subtotal_sel: &str, total_sel: &str) -> Result<()>
     {
         self.conn.execute (&format!("drop table {}_year_aggregates;", column), NO_PARAMS).ok();
         self.conn.execute_batch (&format!("
@@ -447,7 +448,7 @@ impl CommitDb
                 from
                 (
                     select author_year,
-                           count(*) as sub_count
+                           {subtotal_sel} as sub_count
                     from {table}, raw_commits
                     where raw_commits.oid = {table}.commit_oid
                     group by author_year
@@ -456,7 +457,7 @@ impl CommitDb
                     select 
                            author_year,
                            {column},
-                           count(*) as {column}_count
+                           {subtotal_sel} as {column}_count
                     from raw_commits, authors, {table}
                     where show_domain = true
                         and raw_commits.oid = {table}.commit_oid
@@ -466,7 +467,7 @@ impl CommitDb
                              {column}
                 ) as b,
                 (
-                    select author_year, count(*) as commit_count from raw_commits group by author_year
+                    select author_year, {total_sel} as commit_count from raw_commits group by author_year
                 ) as c
                 where a.author_year = b.author_year
                     and a.author_year = c.author_year
@@ -475,13 +476,18 @@ impl CommitDb
 
             create index if not exists index_year on {column}_year_aggregates (year);
             create index if not exists index_{column} on {column}_year_aggregates ({column});
-        ", column=column, table=extra_table))
+        ",
+            column=column,
+            table=extra_table,
+            subtotal_sel=subtotal_sel,
+            total_sel=total_sel))
         .chain_err(|| format!("Could not create {} per-year aggregates", column))?;
 
         Ok(())
     }
 
-    fn create_subcommit_month_aggregates(&mut self, column: &str, extra_table: &str) -> Result<()>
+    fn create_subcommit_month_aggregates(&mut self, column: &str, extra_table: &str,
+                                         subtotal_sel: &str, total_sel: &str) -> Result<()>
     {
         self.conn.execute (&format!("drop table {}_month_aggregates;", column), NO_PARAMS).ok();
         self.conn.execute_batch (&format!("
@@ -494,7 +500,7 @@ impl CommitDb
                 (
                     select author_year,
                            author_month,
-                           count(*) as sub_count
+                           {subtotal_sel} as sub_count
                     from {table}, raw_commits
                     where raw_commits.oid = {table}.commit_oid
                     group by author_year,
@@ -505,7 +511,7 @@ impl CommitDb
                            author_year,
                            author_month,
                            {column},
-                           count(*) as {column}_count
+                           {subtotal_sel} as {column}_count
                     from raw_commits, authors, {table}
                     where show_domain = true
                         and raw_commits.oid = {table}.commit_oid
@@ -518,7 +524,7 @@ impl CommitDb
                 (
                     select author_year,
                            author_month,
-                           count(*) as commit_count
+                           {total_sel} as commit_count
                     from raw_commits
                     group by author_year,
                              author_month
@@ -534,7 +540,11 @@ impl CommitDb
             create index if not exists index_year on {column}_month_aggregates (year);
             create index if not exists index_month on {column}_month_aggregates (month);
             create index if not exists index_{column} on {column}_month_aggregates ({column});
-        ", column=column, table=extra_table))
+        ",
+            column=column,
+            table=extra_table,
+            subtotal_sel=subtotal_sel,
+            total_sel=total_sel))
         .chain_err(|| format!("Could not create {} per-month aggregates", column))?;
 
         Ok(())
@@ -753,7 +763,7 @@ impl CommitDb
     }
 
     fn get_subcommit_hist(&mut self, column: &str, interval: IntervalType,
-                          count_sel: &str) -> Result<CohortHist>
+                          subtotal_sel: &str, total_sel: &str) -> Result<CohortHist>
     {
         const N_ITEMS: i32 = 15;
         let interval_str: &str;
@@ -768,7 +778,7 @@ impl CommitDb
                 author_interval_str = "author_year";
                 aggregate_table = format!("{}_year_aggregates", column);
                 if column == "suffix" {
-                    self.create_subcommit_year_aggregates(column, "suffixes")?;
+                    self.create_subcommit_year_aggregates(column, "suffixes", subtotal_sel, total_sel)?;
                 }
             },
             IntervalType::Month =>
@@ -777,7 +787,7 @@ impl CommitDb
                 author_interval_str = "author_year, author_month";
                 aggregate_table = format!("{}_month_aggregates", column);
                 if column == "suffix" {
-                    self.create_subcommit_month_aggregates(column, "suffixes")?;
+                    self.create_subcommit_month_aggregates(column, "suffixes", subtotal_sel, total_sel)?;
                 }
             }
         }
@@ -829,7 +839,7 @@ impl CommitDb
                 and active_time <= (60*60*24*90)
             group by {interval}",
             interval = author_interval_str,
-            count_selector = count_sel,
+            count_selector = total_sel,
             cohort_num = NO_COHORT)
 
             + ";")).unwrap();
@@ -867,25 +877,32 @@ impl CommitDb
     pub fn get_hist(&mut self, cohort: CohortType, unit: UnitType,
                     interval: IntervalType) -> Result<CohortHist>
     {
-        let selector = match unit
+        let total_selector = match unit
         {
             UnitType::Authors => "count(distinct raw_commits.author_name)",
             UnitType::Commits => "count(*)",
             UnitType::Changes => "sum(n_insertions + n_deletions)"
         };
 
+        let subtotal_selector = match unit
+        {
+            UnitType::Authors => "count(distinct raw_commits.author_name)",
+            UnitType::Commits => "count(*)",
+            UnitType::Changes => "sum(suffixes.n_changes)"
+        };
+
         match cohort
         {
             CohortType::FirstYear =>
             {
-                self.get_firstyear_hist(interval, selector)
+                self.get_firstyear_hist(interval, total_selector)
             },
             CohortType::Domain =>
             {
                 match unit
                 {
                     UnitType::Authors => { self.get_column_authors_hist("author_domain", interval) },
-                    _ => { self.get_column_hist("author_domain", interval, selector) }
+                    _ => { self.get_column_hist("author_domain", interval, total_selector) }
                 }
             },
             CohortType::Repo =>
@@ -893,7 +910,7 @@ impl CommitDb
                 match unit
                 {
                     UnitType::Authors => { self.get_column_authors_hist("repo_name", interval) },
-                    _ => { self.get_column_hist("repo_name", interval, selector) }
+                    _ => { self.get_column_hist("repo_name", interval, total_selector) }
                 }
             }
             CohortType::Suffix =>
@@ -901,8 +918,7 @@ impl CommitDb
                 match unit
                 {
                     UnitType::Authors => { self.get_column_authors_hist("suffix", interval) },
-                    // TODO
-                    _ => { self.get_subcommit_hist("suffix", interval, selector) }
+                    _ => { self.get_subcommit_hist("suffix", interval, subtotal_selector, total_selector) }
                 }
             }
         }
