@@ -33,6 +33,7 @@ arg_enum!
         FirstYear,
         Domain,
         Repo,
+        Prefix,
         Suffix
     }
 }

@@ -82,6 +82,12 @@ impl CommitDb
             create index if not exists index_committer_email on raw_commits (committer_email);
             create index if not exists index_committer_time on raw_commits (committer_time);
 
+            create table if not exists prefixes (
+                commit_oid int,
+                prefix text,
+                n_changes int);
+            create index if not exists index_prefix on prefixes (prefix);
+
             create table if not exists suffixes (
                 commit_oid int,
                 suffix text,
@@ -156,6 +162,20 @@ impl CommitDb
               &commit.n_deletions.to_string()]).chain_err(|| "Failed to insert commit")?;
 
         let commit_oid: String = self.conn.last_insert_rowid().to_string();
+
+        for (prefix, n_changes) in &commit.n_changes_per_prefix {
+            let mut insert_prefix_stats_stmt = self.conn.prepare_cached("
+                insert into prefixes (
+                    commit_oid,
+                    prefix,
+                    n_changes
+                ) values
+                ( ?1, ?2, ?3 )
+            ").unwrap();
+            insert_prefix_stats_stmt.execute (
+                &[&commit_oid, prefix, &n_changes.to_string()]
+            ).chain_err(|| "Failed to insert prefix stats")?;
+        }
 
         for (suffix, n_changes) in &commit.n_changes_per_suffix {
             let mut insert_suffix_stats_stmt = self.conn.prepare_cached("
@@ -662,7 +682,9 @@ impl CommitDb
                 interval_str = "year";
                 author_interval_str = "author_year";
                 aggregate_table = format!("{}_year_aggregates", column);
-                if column == "suffix" {
+                if column == "prefix" {
+                    self.create_column_year_aggregates(column, Some("prefixes"))?;
+                } else if column == "suffix" {
                     self.create_column_year_aggregates(column, Some("suffixes"))?;
                 } else {
                     self.create_column_year_aggregates(column, None)?;
@@ -673,7 +695,9 @@ impl CommitDb
                 interval_str = "year, month";
                 author_interval_str = "author_year, author_month";
                 aggregate_table = format!("{}_month_aggregates", column);
-                if column == "suffix" {
+                if column == "prefix" {
+                    self.create_column_month_aggregates(column, Some("prefixes"))?;
+                } else if column == "suffix" {
                     self.create_column_month_aggregates(column, Some("suffixes"))?;
                 } else {
                     self.create_column_month_aggregates(column, None)?;
@@ -777,6 +801,9 @@ impl CommitDb
                 interval_str = "year";
                 author_interval_str = "author_year";
                 aggregate_table = format!("{}_year_aggregates", column);
+                if column == "prefix" {
+                    self.create_subcommit_year_aggregates(column, "prefixes", subtotal_sel, total_sel)?;
+                }
                 if column == "suffix" {
                     self.create_subcommit_year_aggregates(column, "suffixes", subtotal_sel, total_sel)?;
                 }
@@ -786,6 +813,9 @@ impl CommitDb
                 interval_str = "year, month";
                 author_interval_str = "author_year, author_month";
                 aggregate_table = format!("{}_month_aggregates", column);
+                if column == "prefix" {
+                    self.create_subcommit_month_aggregates(column, "prefixes", subtotal_sel, total_sel)?;
+                }
                 if column == "suffix" {
                     self.create_subcommit_month_aggregates(column, "suffixes", subtotal_sel, total_sel)?;
                 }
@@ -888,7 +918,7 @@ impl CommitDb
         {
             UnitType::Authors => "count(distinct raw_commits.author_name)",
             UnitType::Commits => "count(*)",
-            UnitType::Changes => "sum(suffixes.n_changes)"
+            UnitType::Changes => "sum(suffixes.n_changes)" // FIXME: Redundant
         };
 
         match cohort
@@ -913,11 +943,21 @@ impl CommitDb
                     _ => { self.get_column_hist("repo_name", interval, total_selector) }
                 }
             }
+            CohortType::Prefix =>
+            {
+                match unit
+                {
+                    UnitType::Authors => { self.get_column_authors_hist("prefix", interval) },
+                    UnitType::Changes => { self.get_subcommit_hist("prefix", interval, "sum(prefixes.n_changes)", total_selector) },
+                    _ => { self.get_subcommit_hist("prefix", interval, subtotal_selector, total_selector) }
+                }
+            }
             CohortType::Suffix =>
             {
                 match unit
                 {
                     UnitType::Authors => { self.get_column_authors_hist("suffix", interval) },
+                    UnitType::Changes => { self.get_subcommit_hist("suffix", interval, "sum(suffixes.n_changes)", total_selector) },
                     _ => { self.get_subcommit_hist("suffix", interval, subtotal_selector, total_selector) }
                 }
             }

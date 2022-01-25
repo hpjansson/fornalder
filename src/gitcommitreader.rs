@@ -44,6 +44,7 @@ pub struct RawCommit
     pub committer_time: Option<DateTime::<FixedOffset>>,
     pub n_insertions: i32,
     pub n_deletions: i32,
+    pub n_changes_per_prefix: HashMap<String, i32>,
     pub n_changes_per_suffix: HashMap<String, i32>
 }
 
@@ -55,6 +56,7 @@ pub struct GitCommitReader
     commit_re: Regex,
     file_changes_re: Regex,
     file_changes_bin_re: Regex,
+    prefix_re: Regex,
     suffix_re: Regex,
     line_splitter: Peekable<Split<BufReader<ChildStdout>>>
 }
@@ -81,7 +83,9 @@ impl GitCommitReader
 
         if use_stat
         {
-            cmd.arg("--stat");
+            cmd.arg("--stat")
+               .arg("--stat-width")
+               .arg("999");
         }
 
         let stdout = cmd.stdout(Stdio::piped())
@@ -97,6 +101,7 @@ impl GitCommitReader
             commit_re: Regex::new(r"^[0-9a-f]+__sep__").unwrap(),
             file_changes_re: Regex::new(r"^ +([^ ]+) +[|] +([0-9]+)").unwrap(),
             file_changes_bin_re: Regex::new(r"^ +([^ ]+) +[|] +Bin").unwrap(),
+            prefix_re: Regex::new(r"^([^/]+)").unwrap(),
             suffix_re: Regex::new(r".*[./](.+)$").unwrap(),
             line_splitter: reader.split(b'\n').peekable()
         };
@@ -106,6 +111,16 @@ impl GitCommitReader
 
     fn add_path_changes(&mut self, commit: &mut RawCommit, path: &str, n_changes: i32)
     {
+        let prefix =
+            if self.prefix_re.is_match(path)
+            {
+                self.prefix_re.captures(path).unwrap()[1].to_string()
+            }
+            else
+            {
+                path.to_string()
+            };
+
         let suffix =
             if self.suffix_re.is_match(path)
             {
@@ -116,8 +131,10 @@ impl GitCommitReader
                 path.to_string()
             };
 
+        *commit.n_changes_per_prefix.entry(prefix.clone()).or_insert(0) += n_changes;
         *commit.n_changes_per_suffix.entry(suffix.clone()).or_insert(0) += n_changes;
-//        println!("{}: {}", suffix, commit.n_changes_per_suffix.get(&UniCase(suffix.clone())).unwrap());
+//        println!("{}: {}", prefix, commit.n_changes_per_prefix.get(&prefix.clone()).unwrap());
+//        println!("{}: {}", suffix, commit.n_changes_per_suffix.get(&suffix.clone()).unwrap());
     }
 }
 
