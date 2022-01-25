@@ -54,6 +54,7 @@ pub struct GitCommitReader
     deletions_re: Regex,
     commit_re: Regex,
     file_changes_re: Regex,
+    file_changes_bin_re: Regex,
     suffix_re: Regex,
     line_splitter: Peekable<Split<BufReader<ChildStdout>>>
 }
@@ -95,6 +96,7 @@ impl GitCommitReader
             deletions_re: Regex::new(r"([0-9]+) deletions?").unwrap(),
             commit_re: Regex::new(r"^[0-9a-f]+__sep__").unwrap(),
             file_changes_re: Regex::new(r"^ +([^ ]+) +[|] +([0-9]+)").unwrap(),
+            file_changes_bin_re: Regex::new(r"^ +([^ ]+) +[|] +Bin").unwrap(),
             suffix_re: Regex::new(r".*[./](.+)$").unwrap(),
             line_splitter: reader.split(b'\n').peekable()
         };
@@ -177,6 +179,11 @@ impl Iterator for GitCommitReader
                 let path = self.file_changes_re.captures(&line).unwrap()[1].to_string();
                 let n_changes = self.file_changes_re.captures(&line).unwrap()[2].parse::<i32>().unwrap();
                 self.add_path_changes(&mut commit, &path, n_changes);
+            }
+            else if self.file_changes_bin_re.is_match(&line)
+            {
+                let path = self.file_changes_bin_re.captures(&line).unwrap()[1].to_string();
+                self.add_path_changes(&mut commit, &path, 1);
             }
 
             self.line_splitter.next();
