@@ -47,6 +47,17 @@ impl YearMonth
         }
     }
 
+    pub fn prev(&self) -> YearMonth
+    {
+        let YearMonth { year, month } = *self;
+
+        match month {
+            None => YearMonth { year: year - 1, month: None },
+            Some(0) => YearMonth { year: year - 1, month: Some(11) },
+            Some(m) => YearMonth { year, month: Some(m - 1) },
+        }
+    }
+
     pub fn begin_dt(&self) -> NaiveDateTime
     {
         let m = self.month.unwrap_or(0) + 1;
