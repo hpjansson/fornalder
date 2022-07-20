@@ -206,6 +206,54 @@ impl CommitDb
                     NO_PARAMS)
             .chain_err(|| "Failed to trim wayward commits")?;
 
+        // We postulate that an e-mail address can only map to a single individual.
+        // Therefore, canonicalize the author names such that each e-mail address
+        // is associated with a single author name (the one most frequently seen).
+        // This cuts down on author overcounting due to typos or inconsistent
+        // spelling of names, errors in VCS metadata, etc.
+        //
+        // Each author name can still map to multiple e-mail addresses.
+        //
+        // Example (picked at random) -- the following e-mail/name occurrence counts:
+        //
+        // sven@convergence.de|Sven Neumann|7
+        // sven@gimp.org|Sven Neumann|8861
+        // sven@gimp.org|MEST 1999  Sven Neumann|8
+        // sven@gimp.org|MEST 1999 Sven Neumann|2
+        // sven@gimp.org|Sven  Neumann|1
+        // sven@gimp.org|MET 2001  Sven Neumann|1
+        //
+        // ...become:
+        //
+        // sven@convergence.de|Sven Neumann|7
+        // sven@gimp.org|Sven Neumann|8873
+
+        self.conn.execute("
+            with email_name_freqs as (
+                select author_email, author_name, count(*) as name_freq
+                from raw_commits
+                group by author_email, author_name
+                order by author_email, count(*) desc),
+            partitioned_freqs as (
+                select *, row_number() over (
+                    partition by author_email
+                    order by name_freq desc) as row_number
+                from email_name_freqs),
+            canonical_names as (
+                select author_email, author_name
+                from partitioned_freqs
+                where row_number = 1)
+            update raw_commits
+                set author_name = (
+                    select author_name from canonical_names
+                    where raw_commits.author_email = canonical_names.author_email
+                    limit 1)
+                where raw_commits.author_email in (
+                    select author_email from canonical_names
+                    where raw_commits.author_email = canonical_names.author_email)",
+                          NO_PARAMS)
+            .chain_err(|| "Error canonicalizing author names")?;
+
         // Show all domains by default.
 
         self.conn.execute("
