@@ -203,7 +203,7 @@ impl CommitDb
             format!("delete from raw_commits
                      where author_year < 1980 or author_year > {}",
                     Utc::now().year()).as_str(),
-                    NO_PARAMS)
+            NO_PARAMS)
             .chain_err(|| "Failed to trim wayward commits")?;
 
         // We postulate that an e-mail address can only map to a single individual.
