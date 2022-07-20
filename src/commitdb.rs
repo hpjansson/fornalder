@@ -206,6 +206,31 @@ impl CommitDb
             NO_PARAMS)
             .chain_err(|| "Failed to trim wayward commits")?;
 
+        // Delete duplicate commits. Duplicates are defined as commits with the
+        // same timestamp, author e-mail, number of modifications and repository.
+        // If there are multiple duplicates, only one is kept.
+        //
+        // This cuts down on commit overcounting due to trivial duplicates
+        // between branches, build bot activity, etc.
+        //
+        // Note that it does not resolve situations where one repository has been
+        // grafted onto another. We can't reliably determine which is the genesis
+        // repository, so will have to live with overcounting in those cases.
+
+        self.conn.execute("
+            delete from raw_commits
+            where id in (
+                with dup as (
+                    select *, ROW_NUMBER() OVER (
+                        PARTITION BY author_time, author_email, n_insertions,
+                            n_deletions, repo_name) as row_number
+                    from raw_commits)
+                select id from dup
+                where row_number <> 1
+                order by author_time)",
+                          NO_PARAMS)
+            .chain_err(|| "Failed to delete duplicate commits")?;
+
         // We postulate that an e-mail address can only map to a single individual.
         // Therefore, canonicalize the author names such that each e-mail address
         // is associated with a single author name (the one most frequently seen).
