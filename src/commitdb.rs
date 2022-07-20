@@ -840,14 +840,14 @@ impl CommitDb
                 {
                     hist.set_value(YearMonth { year:  r.get(0).unwrap(),
                                                month: r.get(1).unwrap() },
-                                   r.get(2).unwrap(), r.get::<_,f64>(3).unwrap() as i32);
+                                   r.get(2).unwrap(), r.get::<_,f64>(3).unwrap());
                     hist.set_cohort_name(r.get(2).unwrap(), &r.get::<_, String>(4).unwrap());
                 },
                 IntervalType::Year =>
                 {
                     hist.set_value(YearMonth { year:  r.get(0).unwrap(),
                                                month: None },
-                                   r.get(1).unwrap(), r.get::<_,f64>(2).unwrap() as i32);
+                                   r.get(1).unwrap(), r.get::<_,f64>(2).unwrap());
                     hist.set_cohort_name(r.get(1).unwrap(), &r.get::<_, String>(3).unwrap());
                 }
             }
@@ -958,14 +958,14 @@ impl CommitDb
                 {
                     hist.set_value(YearMonth { year:  r.get(0).unwrap(),
                                                month: r.get(1).unwrap() },
-                                   r.get(2).unwrap(), r.get::<_,f64>(3).unwrap() as i32);
+                                   r.get(2).unwrap(), r.get::<_,f64>(3).unwrap());
                     hist.set_cohort_name(r.get(2).unwrap(), &r.get::<_, String>(4).unwrap());
                 },
                 IntervalType::Year =>
                 {
                     hist.set_value(YearMonth { year:  r.get(0).unwrap(),
                                                month: None },
-                                   r.get(1).unwrap(), r.get::<_,f64>(2).unwrap() as i32);
+                                   r.get(1).unwrap(), r.get::<_,f64>(2).unwrap());
                     hist.set_cohort_name(r.get(1).unwrap(), &r.get::<_, String>(3).unwrap());
                 }
             }

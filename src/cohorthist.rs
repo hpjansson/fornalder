@@ -83,7 +83,7 @@ pub const NO_COHORT: i32 = -1;
 #[derive(Debug)]
 pub struct CohortHist
 {
-    bins: HashMap<YearMonth, HashMap<i32, i32>>,
+    bins: HashMap<YearMonth, HashMap<i32, f64>>,
     first_cohort: i32,
     last_cohort: i32,
     cohort_names: HashMap<i32, String>
@@ -102,7 +102,7 @@ impl CohortHist
         }
     }
 
-    pub fn set_value(&mut self, ym: YearMonth, cohort: i32, value: i32)
+    pub fn set_value(&mut self, ym: YearMonth, cohort: i32, value: f64)
     {
         // NOTE: This will not work if we're overwriting existing values.
 
@@ -115,7 +115,7 @@ impl CohortHist
         self.bins.entry(ym).or_insert_with(HashMap::new).insert(cohort, value);
     }
 
-    pub fn get_value(&self, ym: YearMonth, cohort: i32) -> Option<i32>
+    pub fn get_value(&self, ym: YearMonth, cohort: i32) -> Option<f64>
     {
         let result = self.bins.get(&ym)?;
         let value = result.get(&cohort);
@@ -158,9 +158,9 @@ impl CohortHist
         return self.last_cohort - self.first_cohort + 1;
     }
 
-    pub fn to_vecs(&self) -> Vec<(YearMonth, Vec<(i32, i32)>)>
+    pub fn to_vecs(&self) -> Vec<(YearMonth, Vec<(i32, f64)>)>
     {
-        let mut vecs: Vec<(YearMonth, Vec<(i32, i32)>)> = Vec::new();
+        let mut vecs: Vec<(YearMonth, Vec<(i32, f64)>)> = Vec::new();
         let first_ym: YearMonth;
         let last_ym: YearMonth;
         let first_cohort: i32;
@@ -181,24 +181,24 @@ impl CohortHist
 
         while ym <= last_ym
         {
-            let mut gens_vec: Vec<(i32, i32)> = Vec::new();
-            let sum: i32 =
+            let mut gens_vec: Vec<(i32, f64)> = Vec::new();
+            let sum: f64 =
                 if self.bins.contains_key(&ym) { self.bins[&ym].iter().map(|(_, x)| x).sum() }
-                else { 0 };
+                else { 0.0 };
 
             gens_vec.push((NO_COHORT, sum));
 
             let mut g = first_cohort;
             while g <= last_cohort
             {
-                let value = self.get_value(ym, g).unwrap_or(0);
+                let value = self.get_value(ym, g).unwrap_or(0.0);
                 gens_vec.push((g, value));
                 g += 1;
             }
 
             if !self.get_cohort_name(NO_COHORT).is_empty()
             {
-                gens_vec.push((NO_COHORT, self.get_value(ym, NO_COHORT).unwrap_or(0)));
+                gens_vec.push((NO_COHORT, self.get_value(ym, NO_COHORT).unwrap_or(0.0)));
             }
 
             vecs.push((ym, gens_vec));
