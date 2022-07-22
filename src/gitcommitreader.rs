@@ -136,6 +136,22 @@ impl GitCommitReader
 //        println!("{}: {}", prefix, commit.n_changes_per_prefix.get(&prefix.clone()).unwrap());
 //        println!("{}: {}", suffix, commit.n_changes_per_suffix.get(&suffix.clone()).unwrap());
     }
+
+    fn finalize_paths(&mut self, commit: &mut RawCommit)
+    {
+        // Every commit must have at least one prefix and one suffix change,
+        // otherwise the per-prefix author etc. counts won't add up to the full total.
+
+        if commit.n_changes_per_prefix.is_empty()
+        {
+            commit.n_changes_per_prefix.entry("(blank)".to_string()).or_insert(1);
+        }
+
+        if commit.n_changes_per_suffix.is_empty()
+        {
+            commit.n_changes_per_suffix.entry("(blank)".to_string()).or_insert(1);
+        }
+    }
 }
 
 impl Iterator for GitCommitReader
@@ -211,6 +227,7 @@ impl Iterator for GitCommitReader
 
 //        println!("{:?}", commit);
 
+        self.finalize_paths(&mut commit);
         Some(commit)
     }
 }
