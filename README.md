@@ -65,7 +65,7 @@ Guide to arguments:
 --meta <meta>
     Optional. Project metadata to use. See projects/ for examples.
 
---cohort < firstyear | domain >
+--cohort < domain | firstyear | prefix | repo | suffix >
     Optional. How to split the data into cohorts.
 
 --interval < year | month >
