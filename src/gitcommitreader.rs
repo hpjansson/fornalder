@@ -136,8 +136,6 @@ impl GitCommitReader
 
         *commit.n_changes_per_prefix.entry(prefix.clone()).or_insert(0) += n_changes;
         *commit.n_changes_per_suffix.entry(suffix.clone()).or_insert(0) += n_changes;
-//        println!("{}: {}", prefix, commit.n_changes_per_prefix.get(&prefix.clone()).unwrap());
-//        println!("{}: {}", suffix, commit.n_changes_per_suffix.get(&suffix.clone()).unwrap());
     }
 
     fn finalize_paths(&mut self, commit: &mut RawCommit)
@@ -198,6 +196,7 @@ impl Iterator for GitCommitReader
         {
             let line = String::from_utf8_lossy(&next_seg.unwrap().as_ref().unwrap());
 
+            // Beginning of next commit?
             if self.commit_re.is_match(&line) { break; }
 
             // Insertions and deletions can match on the same line, either can be absent
