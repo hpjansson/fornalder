@@ -72,6 +72,7 @@ impl GitCommitReader
         cmd.arg("-C")
            .arg(&repo_path)
            .arg("log")
+           .arg("--no-merges")
            .arg("--branches")
            .arg("--remotes")
            .arg("--pretty=format:%H__sep__%aD__sep__%aN__sep__%aE__sep__%cD__sep__%cN__sep__%cE")
