@@ -95,7 +95,7 @@ set style data histogram;
 set style histogram rowstacked;
 set xtics scale 0 nomirror offset 0,graph 0.015;
 set ytics nomirror;
-set key autotitle columnheader;
+set key autotitle columnheader noenhanced;
 set key reverse Left horizontal nobox bmargin left width 1.1;
 set ytics textcolor rgb \"0xff000000\" scale 0;
 ";
