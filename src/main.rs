@@ -87,7 +87,7 @@ enum MainCommand
         #[structopt(parse(from_os_str))]
         out_path: PathBuf,
 
-        /// Cohorts to use (firstyear or domain)
+        /// Cohorts to use (firstyear, domain, repo, prefix or suffix)
         #[structopt(short, long, default_value = "firstyear")]
         cohort: CohortType,
 
