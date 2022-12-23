@@ -124,7 +124,7 @@ impl ProjectMeta
 
         let mut n_markers = 0;
 
-        ("array markers = [ ".to_string()
+        (format!("array markers[{}] = [ ", self.markers.as_ref().unwrap().len() * 4)
             + &self.markers.as_ref().unwrap().iter()
                 .map(|m| { n_markers += 1;
                            format!("'{}', '{:02}', {}, '{}',",
