@@ -345,9 +345,9 @@ mod tests {
     fn cohort_hist_bounds() {
         let mut hist = CohortHist::new();
 
-        hist.set_value(YearMonth { year: 2020, month: Some(0) }, 0, 0);
-        hist.set_value(YearMonth { year: 2020, month: Some(1) }, 1, 1);
-        hist.set_value(YearMonth { year: 2020, month: Some(2) }, 2, 2);
+        hist.set_value(YearMonth { year: 2020, month: Some(0) }, 0, 0.0);
+        hist.set_value(YearMonth { year: 2020, month: Some(1) }, 1, 1.0);
+        hist.set_value(YearMonth { year: 2020, month: Some(2) }, 2, 2.0);
 
         let (first_ym, last_ym, first_cohort, last_cohort) = hist.get_bounds().unwrap();
         assert_eq!(
@@ -365,9 +365,9 @@ mod tests {
     fn cohort_hist_bounds_empty_months() {
         let mut hist = CohortHist::new();
 
-        hist.set_value(YearMonth { year: 2020, month: None }, 0, 0);
-        hist.set_value(YearMonth { year: 2020, month: None }, 1, 1);
-        hist.set_value(YearMonth { year: 2020, month: None }, 2, 2);
+        hist.set_value(YearMonth { year: 2020, month: None }, 0, 0.0);
+        hist.set_value(YearMonth { year: 2020, month: None }, 1, 1.0);
+        hist.set_value(YearMonth { year: 2020, month: None }, 2, 2.0);
 
         let (first_ym, last_ym, first_cohort, last_cohort) = hist.get_bounds().unwrap();
         assert_eq!(
